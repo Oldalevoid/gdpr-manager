@@ -63,7 +63,7 @@ const DOC_TYPES = [
 const DEFAULT_SYSTEM = (docLabel) =>
   `Sei un esperto consulente GDPR e privacy italiano con 15 anni di esperienza. Genera documenti professionali, dettagliati e conformi alla normativa vigente (GDPR, D.Lgs. 196/2003 e successive modifiche). Scrivi sempre in italiano. Il documento deve essere immediatamente utilizzabile senza ulteriori modifiche. Non aggiungere note o disclaimer sul fatto che il documento è generato da AI.`;
 
-const DEFAULT_PARAMS = { temperature: 0.3 };
+const DEFAULT_PARAMS = { temperature: 0.3, maxTokens: 4000 };
 
 function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const ci = `Ragione Sociale: ${client.ragioneSociale}\nSettore: ${client.settore}\nTitolare: ${client.titolare}\nP.IVA: ${client.piva}\nSede: ${client.sede}${client.dpo?`\nDPO: ${client.dpo}`:''}`;
@@ -173,6 +173,7 @@ function DocSettingsModal({dt, settings, onSave, onClose}) {
   const [s, setS] = useState({
     systemPrompt: settings?.systemPrompt ?? DEFAULT_SYSTEM(dt.label),
     temperature: settings?.temperature ?? DEFAULT_PARAMS.temperature,
+    maxTokens: settings?.maxTokens ?? DEFAULT_PARAMS.maxTokens,
     templateText: settings?.templateText ?? '',
     templateName: settings?.templateName ?? '',
   });
@@ -212,6 +213,17 @@ function DocSettingsModal({dt, settings, onSave, onClose}) {
             style={{width:'100%',accentColor:dt.color}}/>
           <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',marginTop:2}}>
             <span>0 — Deterministico</span><span>1 — Creativo</span>
+          </div>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <label style={C.lbl}>Lunghezza risposta — max token ({s.maxTokens.toLocaleString('it-IT')})</label>
+          <p style={{margin:'0 0 6px',fontSize:12,color:'#64748b'}}>Controlla la lunghezza massima del documento generato. Valori alti producono documenti più dettagliati.</p>
+          <input type='range' min={500} max={8000} step={500} value={s.maxTokens}
+            onChange={e=>setS(p=>({...p,maxTokens:parseInt(e.target.value)}))}
+            style={{width:'100%',accentColor:dt.color}}/>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',marginTop:2}}>
+            <span>500 — Breve</span><span>4.000 — Standard</span><span>8.000 — Molto dettagliato</span>
           </div>
         </div>
         <div style={{marginBottom:24}}>
@@ -535,7 +547,7 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
               <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
                 {s.templateText&&<span style={{fontSize:10,background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'2px 6px',borderRadius:20}}>📄 Template attivo</span>}
                 {s.systemPrompt&&s.systemPrompt!==DEFAULT_SYSTEM(dt.label)&&<span style={{fontSize:10,background:'#eff6ff',color:ACCENT,fontWeight:700,padding:'2px 6px',borderRadius:20}}>⚙️ Prompt custom</span>}
-                <span style={{fontSize:10,background:'#f8fafc',color:'#64748b',padding:'2px 6px',borderRadius:20}}>temp: {s.temperature??DEFAULT_PARAMS.temperature}</span>
+                <span style={{fontSize:10,background:'#f8fafc',color:'#64748b',padding:'2px 6px',borderRadius:20}}>temp: {s.temperature??DEFAULT_PARAMS.temperature} · max: {(s.maxTokens??DEFAULT_PARAMS.maxTokens).toLocaleString('it-IT')} tok</span>
               </div>
             </div>
             <button style={C.btn('#f8fafc','#475569',true)} onClick={()=>onOpenSettings(dt)} title="Impostazioni agente">⚙️ Settings</button>
@@ -729,6 +741,7 @@ export default function App() {
     const s=docSettings[selDt.id]||{};
     const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
     const temperature = s.temperature ?? DEFAULT_PARAMS.temperature;
+    const maxTokens = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
     try {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -738,7 +751,7 @@ export default function App() {
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          max_tokens: 4000,
+          max_tokens: maxTokens,
           temperature,
           messages: [
             {role:"system", content: systemPrompt},
