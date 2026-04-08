@@ -459,7 +459,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
-      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
       {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
