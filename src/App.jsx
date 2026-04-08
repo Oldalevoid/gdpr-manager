@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from './supabase';
+import RegistroTrattamenti from './RegistroTrattamenti';
+import AnalisiRischi from './AnalisiRischi';
+import DPIA from './DPIA';
+import LIA from './LIA';
+import DataBreaches from './DataBreaches';
 
 const PRIMARY = '#1a3a5c';
 const ACCENT = '#2563eb';
@@ -388,7 +393,7 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
 }
 
 // ---- CLIENT DETAIL ----
-function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings}) {
+function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach}) {
   const [tab,setTab]=useState('docs');
   const getDoc=id=>docs.find(d=>d.tipo===id);
   const pct=Math.round((docs.length/DOC_TYPES.length)*100);
@@ -413,9 +418,14 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
           <div style={{background:'#f1f5f9',borderRadius:8,height:5,width:110,marginTop:5,marginLeft:'auto'}}><div style={{background:pct===100?'#16a34a':ACCENT,borderRadius:8,height:'100%',width:`${pct}%`,transition:'width .5s'}}/></div>
         </div>
       </div>
-      <div style={{background:'#fff',borderLeft:'1px solid #e5eaf0',borderRight:'1px solid #e5eaf0',display:'flex',gap:0,borderBottom:'1px solid #e5eaf0',marginBottom:20}}>
-        <TB id='docs' label='📋 Documenti GDPR'/>
+      <div style={{background:'#fff',borderLeft:'1px solid #e5eaf0',borderRight:'1px solid #e5eaf0',display:'flex',gap:0,borderBottom:'1px solid #e5eaf0',marginBottom:20,overflowX:'auto'}}>
+        <TB id='docs' label='🤖 Generazione AI'/>
         <TB id='repo' label='📚 Repository' badge={docs.length}/>
+        <TB id='registro' label='✍️ Registro' badge={trattamenti.length}/>
+        <TB id='rischi' label='⚠️ Rischi' badge={analisi.length}/>
+        <TB id='dpia' label='🔍 DPIA' badge={dpia.length}/>
+        <TB id='lia' label='⚖️ LIA' badge={lia.length}/>
+        <TB id='breach' label='🚨 Breach' badge={breaches.length}/>
         <TB id='assets' label='🖥️ Asset' badge={assets.length}/>
         <TB id='suppliers' label='🏭 Fornitori' badge={suppliers.length}/>
       </div>
@@ -449,6 +459,11 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
+      {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi}/>}
+      {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
+      {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
+      {tab==='breach'&&<DataBreaches breaches={breaches} onSave={onSaveBreach} onDelete={onDeleteBreach}/>}
       {tab==='assets'&&<AssetManager assets={assets} onChange={onChangeAssets}/>}
       {tab==='suppliers'&&<SupplierManager suppliers={suppliers} onChange={onChangeSuppliers}/>}
     </div>
@@ -643,6 +658,12 @@ export default function App() {
   const [clientDocs,setClientDocs]=useState([]);
   const [clientAssets,setClientAssets]=useState([]);
   const [clientSuppliers,setClientSuppliers]=useState([]);
+  const [clientTrattamenti,setClientTrattamenti]=useState([]);
+  const [clientMisure,setClientMisure]=useState([]);
+  const [clientAnalisi,setClientAnalisi]=useState([]);
+  const [clientDPIA,setClientDPIA]=useState([]);
+  const [clientLIA,setClientLIA]=useState([]);
+  const [clientBreaches,setClientBreaches]=useState([]);
   const [docSettings,setDocSettings]=useState({});
   const [selDt,setSelDt]=useState(null);
   const [settingsDt,setSettingsDt]=useState(null);
@@ -680,14 +701,30 @@ export default function App() {
     if(arr.length>0) await supabase.from('clients').upsert(arr.map(c=>({id:c.id,data:c})));
   };
   const loadClient=async c=>{
-    const [{ data: docRows },{ data: assetRows },{ data: supplierRows }] = await Promise.all([
+    const [
+      { data: docRows },{ data: assetRows },{ data: supplierRows },
+      { data: trattRows },{ data: misureRows },{ data: analisiRows },
+      { data: dpiaRows },{ data: liaRows },{ data: breachRows }
+    ] = await Promise.all([
       supabase.from('documents').select('*').eq('client_id',c.id).order('created_at'),
       supabase.from('assets').select('*').eq('client_id',c.id),
-      supabase.from('suppliers').select('*').eq('client_id',c.id)
+      supabase.from('suppliers').select('*').eq('client_id',c.id),
+      supabase.from('trattamenti').select('*').eq('client_id',c.id).order('created_at'),
+      supabase.from('misure_sicurezza').select('*').eq('client_id',c.id),
+      supabase.from('analisi_rischi').select('*').eq('client_id',c.id),
+      supabase.from('dpia').select('*').eq('client_id',c.id),
+      supabase.from('lia').select('*').eq('client_id',c.id),
+      supabase.from('data_breaches').select('*').eq('client_id',c.id).order('created_at'),
     ]);
     setClientDocs((docRows||[]).map(r=>({id:r.id,tipo:r.tipo,label:r.label,contenuto:r.contenuto,createdAt:r.created_at})));
     setClientAssets((assetRows||[]).map(r=>({...r.data,id:r.id})));
     setClientSuppliers((supplierRows||[]).map(r=>({...r.data,id:r.id})));
+    setClientTrattamenti((trattRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
+    setClientMisure((misureRows||[]).map(r=>({...r.data,id:r.id})));
+    setClientAnalisi((analisiRows||[]).map(r=>({id:r.id,trattamentoId:r.trattamento_id,data:r.data,createdAt:r.created_at})));
+    setClientDPIA((dpiaRows||[]).map(r=>({id:r.id,trattamentoId:r.trattamento_id,data:r.data,createdAt:r.created_at})));
+    setClientLIA((liaRows||[]).map(r=>({id:r.id,trattamentoId:r.trattamento_id,data:r.data,createdAt:r.created_at})));
+    setClientBreaches((breachRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
   };
   const saveDocs=async(arr,cid=selClient.id)=>{
     setClientDocs(arr);
@@ -708,6 +745,44 @@ export default function App() {
     setClientSuppliers(arr);
     await supabase.from('suppliers').delete().eq('client_id',selClient.id);
     if(arr.length>0) await supabase.from('suppliers').insert(arr.map(s=>({id:s.id||Date.now().toString(),client_id:selClient.id,data:s})));
+  };
+
+  const saveTrattamento=async t=>{
+    const arr=[...clientTrattamenti.filter(x=>x.id!==t.id),t];
+    setClientTrattamenti(arr);
+    await supabase.from('trattamenti').upsert({id:t.id,client_id:selClient.id,data:t,created_at:t.createdAt});
+  };
+  const deleteTrattamento=async id=>{
+    setClientTrattamenti(p=>p.filter(x=>x.id!==id));
+    setClientAnalisi(p=>p.filter(x=>x.trattamentoId!==id));
+    setClientDPIA(p=>p.filter(x=>x.trattamentoId!==id));
+    setClientLIA(p=>p.filter(x=>x.trattamentoId!==id));
+    await supabase.from('trattamenti').delete().eq('id',id);
+  };
+  const saveMisure=async arr=>{
+    setClientMisure(arr);
+    await supabase.from('misure_sicurezza').delete().eq('client_id',selClient.id);
+    if(arr.length>0) await supabase.from('misure_sicurezza').insert(arr.map(m=>({id:m.id||Date.now().toString(),client_id:selClient.id,data:m})));
+  };
+  const saveAnalisi=async record=>{
+    setClientAnalisi(p=>[...p.filter(x=>x.trattamentoId!==record.trattamentoId),record]);
+    await supabase.from('analisi_rischi').upsert({id:record.id,client_id:selClient.id,trattamento_id:record.trattamentoId,data:record.data,created_at:record.createdAt});
+  };
+  const saveDPIA=async record=>{
+    setClientDPIA(p=>[...p.filter(x=>x.trattamentoId!==record.trattamentoId),record]);
+    await supabase.from('dpia').upsert({id:record.id,client_id:selClient.id,trattamento_id:record.trattamentoId,data:record.data,created_at:record.createdAt});
+  };
+  const saveLIA=async record=>{
+    setClientLIA(p=>[...p.filter(x=>x.trattamentoId!==record.trattamentoId),record]);
+    await supabase.from('lia').upsert({id:record.id,client_id:selClient.id,trattamento_id:record.trattamentoId,data:record.data,created_at:record.createdAt});
+  };
+  const saveBreach=async b=>{
+    setClientBreaches(p=>[...p.filter(x=>x.id!==b.id),b]);
+    await supabase.from('data_breaches').upsert({id:b.id,client_id:selClient.id,data:b,created_at:b.createdAt});
+  };
+  const deleteBreach=async id=>{
+    setClientBreaches(p=>p.filter(x=>x.id!==id));
+    await supabase.from('data_breaches').delete().eq('id',id);
   };
 
   async function handleSaveClient(form) {
@@ -853,6 +928,20 @@ export default function App() {
             onChangeAssets={saveAssets}
             onChangeSuppliers={saveSuppliers}
             onOpenSettings={dt=>setSettingsDt(dt)}
+            trattamenti={clientTrattamenti}
+            misure={clientMisure}
+            analisi={clientAnalisi}
+            dpia={clientDPIA}
+            lia={clientLIA}
+            breaches={clientBreaches}
+            onSaveTrattamento={saveTrattamento}
+            onDeleteTrattamento={deleteTrattamento}
+            onSaveMisure={saveMisure}
+            onSaveAnalisi={saveAnalisi}
+            onSaveDPIA={saveDPIA}
+            onSaveLIA={saveLIA}
+            onSaveBreach={saveBreach}
+            onDeleteBreach={deleteBreach}
           />
         )}
         {page==='generate'&&selDt&&selClient&&(
