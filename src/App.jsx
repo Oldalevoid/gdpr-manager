@@ -546,13 +546,16 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,useRegistro,setUseRegistro,hasRegistro,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
+  const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
   return (
     <div>
       <button style={{...C.btn('#f1f5f9','#374151',true),marginBottom:16}} onClick={onBack}>← Indietro</button>
       <div style={{display:'grid',gridTemplateColumns:genDoc?'1fr 1fr':'minmax(300px,580px)',gap:18,alignItems:'start'}}>
+
+        {/* LEFT — form */}
         <div style={C.card}>
           <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18,paddingBottom:14,borderBottom:'1px solid #f1f5f9'}}>
             <span style={{fontSize:26}}>{dt.icon}</span>
@@ -562,31 +565,90 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
               <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
                 {s.templateText&&<span style={{fontSize:10,background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'2px 6px',borderRadius:20}}>📄 Template attivo</span>}
                 {s.systemPrompt&&s.systemPrompt!==DEFAULT_SYSTEM(dt.label)&&<span style={{fontSize:10,background:'#eff6ff',color:ACCENT,fontWeight:700,padding:'2px 6px',borderRadius:20}}>⚙️ Prompt custom</span>}
+                {useRegistro&&<span style={{fontSize:10,background:'#fef9c3',color:'#92400e',fontWeight:700,padding:'2px 6px',borderRadius:20}}>📋 Registro incluso</span>}
                 <span style={{fontSize:10,background:'#f8fafc',color:'#64748b',padding:'2px 6px',borderRadius:20}}>temp: {s.temperature??DEFAULT_PARAMS.temperature} · max: {(s.maxTokens??DEFAULT_PARAMS.maxTokens).toLocaleString('it-IT')} tok</span>
               </div>
             </div>
             <button style={C.btn('#f8fafc','#475569',true)} onClick={()=>onOpenSettings(dt)} title="Impostazioni agente">⚙️ Settings</button>
           </div>
+
           {dt.fields.map(f=><Fld key={f.id} id={f.id} label={f.label} type={f.type} val={inputs[f.id]} onChange={u} ph={f.ph}/>)}
+
+          {/* Extra prompt */}
+          <div style={{marginBottom:14}}>
+            <label style={{display:'block',fontSize:11,fontWeight:700,color:'#475569',marginBottom:4,textTransform:'uppercase',letterSpacing:'.4px'}}>
+              💬 Prompt aggiuntivo (opzionale)
+            </label>
+            <textarea value={extraPrompt} onChange={e=>setExtraPrompt(e.target.value)}
+              placeholder="es. Aggiungi una sezione specifica sulle misure tecniche, usa tono più formale, includi riferimento al DPCM..."
+              rows={3}
+              style={{width:'100%',padding:'8px 11px',border:'1.5px solid #dde3ec',borderRadius:8,fontSize:13,boxSizing:'border-box',outline:'none',fontFamily:'inherit',background:'#fff',resize:'vertical'}}
+              onFocus={fo} onBlur={bl}/>
+            <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Istruzioni extra che si sommano ai campi compilati sopra — non sostituisce il system prompt.</div>
+          </div>
+
+          {/* Usa dati dal Registro */}
+          {hasRegistro&&(
+            <div style={{marginBottom:16,padding:'10px 14px',background:'#fefce8',borderRadius:8,border:'1px solid #fde68a',display:'flex',alignItems:'center',gap:10}}>
+              <input type='checkbox' id='useReg' checked={useRegistro} onChange={e=>setUseRegistro(e.target.checked)} style={{width:16,height:16,accentColor:'#d97706',flexShrink:0}}/>
+              <label htmlFor='useReg' style={{fontSize:13,color:'#78350f',cursor:'pointer',lineHeight:1.4}}>
+                <strong>📋 Includi dati dal Registro dei Trattamenti</strong><br/>
+                <span style={{fontSize:11,fontWeight:400}}>I trattamenti, asset, fornitori e misure già inseriti vengono aggiunti al contesto.</span>
+              </label>
+            </div>
+          )}
+
           <button style={{...C.btn(dt.color,'#fff'),width:'100%',padding:'11px',fontSize:15,justifyContent:'center',opacity:generating?.7:1}} onClick={onGenerate} disabled={generating}>
             {generating?'⏳ Generazione in corso...':'✨ Genera con AI'}
           </button>
           {error&&<div style={{marginTop:10,padding:12,background:'#fef2f2',color:'#dc2626',borderRadius:8,fontSize:13,wordBreak:'break-word'}}>{error}</div>}
         </div>
+
+        {/* RIGHT — documento + chat follow-up */}
         {genDoc&&(
-          <div style={C.card}>
-            <div style={{...C.row,justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
-              <div>
-                <span style={{fontWeight:700,color:'#0f172a',fontSize:15}}>📄 Documento Generato</span>
-                {autoSaved&&<div style={{fontSize:11,color:'#16a34a',marginTop:3,fontWeight:600}}>✅ Salvato in Repository</div>}
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div style={C.card}>
+              <div style={{...C.row,justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
+                <div>
+                  <span style={{fontWeight:700,color:'#0f172a',fontSize:15}}>📄 Documento Generato</span>
+                  {autoSaved&&<div style={{fontSize:11,color:'#16a34a',marginTop:3,fontWeight:600}}>✅ Salvato in Repository</div>}
+                </div>
+                <div style={C.row}>
+                  <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>onCopy(genDoc)}>{copied?'✅':'📋'} Copia</button>
+                  <button style={C.btn('#4f46e5','#fff',true)} onClick={()=>onExport(genDoc,`${dt.label}_${client.ragioneSociale}`)}>📥 .doc</button>
+                </div>
               </div>
-              <div style={C.row}>
-                <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>onCopy(genDoc)}>{copied?'✅':'📋'} Copia</button>
-                <button style={C.btn('#4f46e5','#fff',true)} onClick={()=>onExport(genDoc,`${dt.label}_${client.ragioneSociale}`)}>📥 .doc</button>
+              <div style={{maxHeight:480,overflowY:'auto',padding:'20px 24px',background:'#fff',borderRadius:8,border:'1px solid #e2e8f0',boxShadow:'inset 0 1px 3px rgba(0,0,0,0.04)'}}>
+                <DocRenderer content={genDoc}/>
               </div>
             </div>
-            <div style={{maxHeight:520,overflowY:'auto',padding:'20px 24px',background:'#fff',borderRadius:8,border:'1px solid #e2e8f0',boxShadow:'inset 0 1px 3px rgba(0,0,0,0.04)'}}>
-              <DocRenderer content={genDoc}/>
+
+            {/* Chat follow-up */}
+            <div style={{...C.card,borderTop:`3px solid ${dt.color}`}}>
+              <div style={{fontWeight:700,fontSize:13,color:'#0f172a',marginBottom:4}}>✏️ Modifica / Raffina il documento</div>
+              <div style={{fontSize:12,color:'#64748b',marginBottom:10}}>Scrivi cosa vuoi modificare o aggiungere — l'AI rigenera il documento tenendo conto della conversazione.</div>
+
+              {/* History pills */}
+              {chatHistory.filter(m=>m.role==='user').slice(1).map((m,i)=>(
+                <div key={i} style={{marginBottom:6,padding:'6px 10px',background:'#f1f5f9',borderRadius:8,fontSize:12,color:'#374151',borderLeft:`3px solid ${dt.color}`}}>
+                  <span style={{fontWeight:600,color:'#64748b',fontSize:10,textTransform:'uppercase'}}>Tua richiesta #{i+1}: </span>
+                  {m.content}
+                </div>
+              ))}
+
+              <textarea value={followUpPrompt} onChange={e=>setFollowUpPrompt(e.target.value)}
+                placeholder={`es. Aggiungi una sezione sulle misure di sicurezza tecniche, rendi più formale il paragrafo sulle finalità, inserisci riferimento all'art. 5 GDPR...`}
+                rows={3}
+                style={{width:'100%',padding:'8px 11px',border:`1.5px solid ${dt.color}44`,borderRadius:8,fontSize:13,boxSizing:'border-box',outline:'none',fontFamily:'inherit',background:'#fff',resize:'vertical',marginBottom:10}}
+                onFocus={e=>e.target.style.borderColor=dt.color} onBlur={e=>e.target.style.borderColor=dt.color+'44'}
+                onKeyDown={e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))onFollowUp();}}
+              />
+              <div style={{...C.row,justifyContent:'space-between'}}>
+                <button style={{...C.btn(dt.color,'#fff'),opacity:followingUp||!followUpPrompt.trim()?.7:1}} onClick={onFollowUp} disabled={followingUp||!followUpPrompt.trim()}>
+                  {followingUp?'⏳ Elaborazione...':'🔄 Aggiorna documento'}
+                </button>
+                <span style={{fontSize:11,color:'#94a3b8'}}>Cmd+Enter per inviare</span>
+              </div>
             </div>
           </div>
         )}
@@ -671,6 +733,11 @@ export default function App() {
   const [generating,setGenerating]=useState(false);
   const [genDoc,setGenDoc]=useState(null);
   const [autoSaved,setAutoSaved]=useState(false);
+  const [extraPrompt,setExtraPrompt]=useState('');
+  const [useRegistro,setUseRegistro]=useState(false);
+  const [chatHistory,setChatHistory]=useState([]); // [{role,content}]
+  const [followUpPrompt,setFollowUpPrompt]=useState('');
+  const [followingUp,setFollowingUp]=useState(false);
   const [viewDoc,setViewDoc]=useState(null);
   const [loading,setLoading]=useState(true);
   const [copied,setCopied]=useState(false);
@@ -810,40 +877,81 @@ export default function App() {
     setShowApiKey(false);
   }
 
+  function buildRegistroContext() {
+    if(!useRegistro || !clientTrattamenti.length) return '';
+    const assetObj = Object.fromEntries(clientAssets.map(a=>[a.id,a]));
+    const suppObj  = Object.fromEntries(clientSuppliers.map(s=>[s.id,s]));
+    const misuraObj= Object.fromEntries(clientMisure.map(m=>[m.id,m]));
+    const lines = clientTrattamenti.map(t=>{
+      const assets = (t.assetIds||[]).map(id=>assetObj[id]?.nome).filter(Boolean).join(', ');
+      const supps  = (t.supplierIds||[]).map(id=>suppObj[id]?.nome).filter(Boolean).join(', ');
+      const misure = Object.values(t.misurePerAsset||{}).flat().map(id=>misuraObj[id]?.nome).filter(Boolean).join(', ');
+      return `- ${t.nome} | Base: ${t.baseGiuridica} | Dati: ${t.categorieDati||'—'} | Interessati: ${t.categorieInteressati||'—'} | Retention: ${t.retention||'—'} | Asset: ${assets||'—'} | Fornitori: ${supps||'—'} | Misure: ${misure||'—'}`;
+    });
+    return `\n\nREGISTRO DEI TRATTAMENTI (usa questi dati per arricchire il documento):\n${lines.join('\n')}`;
+  }
+
+  async function callGroq(messages, maxTokens, temperature) {
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({ model:"llama-3.3-70b-versatile", max_tokens:maxTokens, temperature, messages })
+    });
+    const data = await r.json();
+    if(!r.ok||data.error) throw new Error(`Errore API (${r.status}): ${data.error?.message||JSON.stringify(data.error||data)}`);
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if(!text) throw new Error('Risposta vuota. Riprova.');
+    return text;
+  }
+
   async function handleGenerate() {
     if(!apiKey) { setError('API Key Groq mancante. Configurala tramite il pulsante "🔑 API Key" in alto a destra.'); return; }
     setGenerating(true); setError(null); setAutoSaved(false);
-    const s=docSettings[selDt.id]||{};
+    const s = docSettings[selDt.id]||{};
     const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
-    const temperature = s.temperature ?? DEFAULT_PARAMS.temperature;
-    const maxTokens = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
+    const temperature  = s.temperature ?? DEFAULT_PARAMS.temperature;
+    const maxTokens    = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
     try {
-      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          max_tokens: maxTokens,
-          temperature,
-          messages: [
-            {role:"system", content: systemPrompt},
-            {role:"user", content: buildPrompt(selDt.id, selClient, inputs, s, clientAssets, clientSuppliers)}
-          ]
-        })
-      });
-      const data=await r.json();
-      if(!r.ok||data.error) throw new Error(`Errore API (${r.status}): ${data.error?.message||JSON.stringify(data.error||data)}`);
-      const text=data.choices?.[0]?.message?.content?.trim();
-      if(!text) throw new Error('Risposta vuota. Riprova.');
+      let userContent = buildPrompt(selDt.id, selClient, inputs, s, clientAssets, clientSuppliers);
+      userContent += buildRegistroContext();
+      if(extraPrompt.trim()) userContent += `\n\nINSTRUZIONI AGGIUNTIVE:\n${extraPrompt.trim()}`;
+      const messages = [
+        {role:'system', content: systemPrompt},
+        {role:'user',   content: userContent},
+      ];
+      const text = await callGroq(messages, maxTokens, temperature);
+      setChatHistory([
+        {role:'user',      content: userContent},
+        {role:'assistant', content: text},
+      ]);
       setGenDoc(text);
       const doc={id:Date.now().toString(),tipo:selDt.id,label:selDt.label,contenuto:text,createdAt:new Date().toISOString()};
       await saveDocs([...clientDocs.filter(d=>d.tipo!==selDt.id),doc]);
       setAutoSaved(true);
     } catch(e){ setError(e.message); }
     setGenerating(false);
+  }
+
+  async function handleFollowUp() {
+    if(!followUpPrompt.trim()||!apiKey) return;
+    setFollowingUp(true); setError(null);
+    const s = docSettings[selDt.id]||{};
+    const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
+    const temperature  = s.temperature ?? DEFAULT_PARAMS.temperature;
+    const maxTokens    = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
+    try {
+      const newHistory = [...chatHistory, {role:'user', content: followUpPrompt.trim()}];
+      const messages   = [{role:'system', content: systemPrompt}, ...newHistory];
+      const text = await callGroq(messages, maxTokens, temperature);
+      const updatedHistory = [...newHistory, {role:'assistant', content: text}];
+      setChatHistory(updatedHistory);
+      setGenDoc(text);
+      setFollowUpPrompt('');
+      const doc={id:Date.now().toString(),tipo:selDt.id,label:selDt.label,contenuto:text,createdAt:new Date().toISOString()};
+      await saveDocs([...clientDocs.filter(d=>d.tipo!==selDt.id),doc]);
+      setAutoSaved(true);
+    } catch(e){ setError(e.message); }
+    setFollowingUp(false);
   }
 
   async function handleDeleteDoc(doc){await saveDocs(clientDocs.filter(d=>d.id!==doc.id));}
@@ -921,7 +1029,7 @@ export default function App() {
             assets={clientAssets}
             suppliers={clientSuppliers}
             docSettings={docSettings}
-            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setPrev('client');setPage('generate');}}
+            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setExtraPrompt('');setUseRegistro(false);setChatHistory([]);setFollowUpPrompt('');setPrev('client');setPage('generate');}}
             onView={doc=>{setViewDoc(doc);setPrev('client');setPage('view');}}
             onDeleteDoc={handleDeleteDoc}
             onExport={exportToDoc}
@@ -961,6 +1069,16 @@ export default function App() {
             autoSaved={autoSaved}
             docSettings={docSettings}
             onOpenSettings={dt=>setSettingsDt(dt)}
+            extraPrompt={extraPrompt}
+            setExtraPrompt={setExtraPrompt}
+            useRegistro={useRegistro}
+            setUseRegistro={setUseRegistro}
+            hasRegistro={clientTrattamenti.length>0}
+            chatHistory={chatHistory}
+            followUpPrompt={followUpPrompt}
+            setFollowUpPrompt={setFollowUpPrompt}
+            onFollowUp={handleFollowUp}
+            followingUp={followingUp}
           />
         )}
         {page==='view'&&viewDoc&&(
