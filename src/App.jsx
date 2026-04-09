@@ -716,6 +716,254 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
   );
 }
 
+// ---- MODULE SELECTOR ----
+function ModuleSelector({ client, onSelect }) {
+  const MODULES = [
+    {
+      id: 'gdpr',
+      icon: '🔐',
+      label: 'GDPR',
+      desc: 'Reg. UE 2016/679',
+      color: '#2563eb',
+      bg: '#eff6ff',
+      features: ['Registro dei Trattamenti', 'Analisi dei Rischi', 'DPIA & LIA', 'Data Breach', 'Generazione documenti AI', 'Gestione asset e fornitori'],
+      badge: null,
+    },
+    {
+      id: 'nis2',
+      icon: '🛡️',
+      label: 'NIS2',
+      desc: 'Dir. UE 2022/2555',
+      color: '#0891b2',
+      bg: '#ecfeff',
+      features: ['Classificazione soggetto', 'Gap analysis NIS2', 'Misure di sicurezza', 'Gestione incidenti', 'Registro fornitori critici', 'Reportistica Autorità'],
+      badge: 'In sviluppo',
+    },
+    {
+      id: 'aiact',
+      icon: '🤖',
+      label: 'AI Act',
+      desc: 'Reg. UE 2024/1689',
+      color: '#7c3aed',
+      bg: '#f5f3ff',
+      features: ['Classificazione sistemi AI', 'Valutazione del rischio AI', 'Registrazione sistemi ad alto rischio', 'Conformità requisiti obbligatori', 'Gestione documentazione tecnica', 'Monitoraggio post-mercato'],
+      badge: 'In sviluppo',
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{marginBottom:28}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:6}}>
+          <div style={{width:52,height:52,borderRadius:14,background:'#eff6ff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🏢</div>
+          <div>
+            <h2 style={{margin:0,fontSize:22,color:'#0f172a'}}>{client.ragioneSociale}</h2>
+            <div style={{fontSize:13,color:'#64748b',marginTop:2}}>👤 {client.titolare} · 📊 {client.settore} · 🏛️ {client.piva}</div>
+          </div>
+        </div>
+        <div style={{fontSize:14,color:'#64748b',marginTop:8}}>Seleziona il modulo normativo da gestire per questo cliente.</div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
+        {MODULES.map(m=>(
+          <div key={m.id}
+            onClick={()=>onSelect(m.id)}
+            style={{background:'#fff',borderRadius:16,padding:28,boxShadow:'0 2px 8px rgba(0,0,0,0.07)',border:`1.5px solid ${m.bg==='#fff'?'#e5eaf0':m.bg}`,cursor:'pointer',transition:'all .18s',position:'relative',overflow:'hidden'}}
+            onMouseEnter={e=>{e.currentTarget.style.boxShadow=`0 8px 28px ${m.color}22`;e.currentTarget.style.borderColor=m.color+'66';e.currentTarget.style.transform='translateY(-2px)';}}
+            onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)';e.currentTarget.style.borderColor=`${m.bg==='#fff'?'#e5eaf0':m.bg}`;e.currentTarget.style.transform='translateY(0)';}}
+          >
+            {/* Accent strip */}
+            <div style={{position:'absolute',top:0,left:0,right:0,height:4,background:m.color,borderRadius:'16px 16px 0 0'}}/>
+
+            <div style={{display:'flex',alignItems:'flex-start',gap:14,marginBottom:20}}>
+              <div style={{width:56,height:56,borderRadius:14,background:m.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>
+                {m.icon}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                  <span style={{fontWeight:800,fontSize:20,color:'#0f172a'}}>{m.label}</span>
+                  {m.badge&&<span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:m.color+'18',color:m.color}}>{m.badge}</span>}
+                </div>
+                <div style={{fontSize:12,color:m.color,fontWeight:600}}>{m.desc}</div>
+              </div>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:22}}>
+              {m.features.map(f=>(
+                <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#475569'}}>
+                  <div style={{width:6,height:6,borderRadius:'50%',background:m.color,flexShrink:0}}/>
+                  {f}
+                </div>
+              ))}
+            </div>
+
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <button style={{background:m.color,color:'#fff',border:'none',borderRadius:8,padding:'9px 20px',cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'inherit',display:'flex',alignItems:'center',gap:6}}>
+                {m.id==='gdpr'?'Apri modulo':'Esplora'} →
+              </button>
+              {m.id!=='gdpr'&&<span style={{fontSize:11,color:'#94a3b8',fontStyle:'italic'}}>Funzionalità in arrivo</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- NIS2 PAGE ----
+function NIS2Page({ client, onBack }) {
+  const SEZIONI = [
+    { id:'classificazione', icon:'🏷️', label:'Classificazione Soggetto', desc:'Determina se il soggetto rientra tra gli Essential Entities (EE) o Important Entities (IE) ai sensi dell\'art. 3 NIS2.', status:'coming', color:'#0891b2' },
+    { id:'gap', icon:'📊', label:'Gap Analysis NIS2', desc:'Analisi dello scarto tra le misure di sicurezza attualmente in essere e i requisiti minimi previsti dall\'art. 21 NIS2.', status:'coming', color:'#0891b2' },
+    { id:'misure', icon:'🔒', label:'Misure di Sicurezza', desc:'Registro e valutazione delle misure tecniche e organizzative adottate: gestione del rischio, continuità operativa, crittografia, IAM.', status:'coming', color:'#0891b2' },
+    { id:'incidenti', icon:'🚨', label:'Gestione Incidenti', desc:'Workflow per la notifica degli incidenti significativi all\'autorità competente entro 24h (early warning) e 72h (notifica completa).', status:'coming', color:'#dc2626' },
+    { id:'fornitori', icon:'🏭', label:'Registro Fornitori Critici', desc:'Mappatura della supply chain digitale e valutazione del rischio dei fornitori ICT ai sensi dell\'art. 21 par. 2 lett. d.', status:'coming', color:'#0891b2' },
+    { id:'report', icon:'📋', label:'Reportistica Autorità', desc:'Predisposizione della documentazione da trasmettere all\'Autorità nazionale competente (ACN in Italia).', status:'coming', color:'#0891b2' },
+  ];
+
+  return (
+    <div>
+      <button style={{background:'none',border:'none',cursor:'pointer',fontSize:13,color:'#64748b',fontFamily:'inherit',display:'flex',alignItems:'center',gap:6,marginBottom:20,padding:0,fontWeight:600}} onClick={onBack}>
+        ← {client.ragioneSociale}
+      </button>
+
+      {/* Header */}
+      <div style={{background:'linear-gradient(135deg, #0c4a6e 0%, #0891b2 100%)',borderRadius:16,padding:'28px 32px',marginBottom:28,color:'#fff',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',right:-20,top:-20,width:140,height:140,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
+        <div style={{position:'absolute',right:40,bottom:-30,width:100,height:100,borderRadius:'50%',background:'rgba(255,255,255,0.04)'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:12}}>
+          <span style={{fontSize:36}}>🛡️</span>
+          <div>
+            <h2 style={{margin:0,fontSize:22,fontWeight:800}}>Modulo NIS2</h2>
+            <div style={{fontSize:13,opacity:.8,marginTop:2}}>Direttiva UE 2022/2555 — Sicurezza delle reti e dei sistemi informativi</div>
+          </div>
+        </div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.15)',borderRadius:20,padding:'6px 14px',fontSize:12,fontWeight:700}}>
+          ⏳ Modulo in sviluppo — funzionalità operative disponibili a breve
+        </div>
+      </div>
+
+      {/* Cards sezioni */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}}>
+        {SEZIONI.map(s=>(
+          <div key={s.id} style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e5eaf0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',opacity:.85,position:'relative',overflow:'hidden'}}>
+            <div style={{position:'absolute',top:12,right:12,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'#f0f9ff',color:'#0891b2'}}>Prossimamente</div>
+            <div style={{width:42,height:42,borderRadius:10,background:'#ecfeff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,marginBottom:12}}>{s.icon}</div>
+            <div style={{fontWeight:700,fontSize:14,color:'#0f172a',marginBottom:6}}>{s.label}</div>
+            <div style={{fontSize:12,color:'#64748b',lineHeight:1.6}}>{s.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Note normative */}
+      <div style={{marginTop:28,background:'#f0f9ff',borderRadius:12,padding:'20px 24px',border:'1px solid #bae6fd'}}>
+        <div style={{fontWeight:700,fontSize:13,color:'#0c4a6e',marginBottom:10}}>📌 Riferimenti normativi NIS2</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}}>
+          {[
+            'Art. 3 — Classificazione soggetti (EE/IE)',
+            'Art. 21 — Misure di gestione del rischio',
+            'Art. 23 — Obbligo di notifica degli incidenti',
+            'Art. 26 — Giurisdizione e registrazione',
+            'Art. 32-33 — Vigilanza e sanzioni',
+            'D.Lgs. di recepimento (in corso — Italia)',
+          ].map(r=>(
+            <div key={r} style={{display:'flex',alignItems:'flex-start',gap:8,fontSize:12,color:'#075985'}}>
+              <span style={{marginTop:1,flexShrink:0}}>▸</span>{r}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- AI ACT PAGE ----
+function AIActPage({ client, onBack }) {
+  const SEZIONI = [
+    { id:'classificazione', icon:'🎯', label:'Classificazione Sistemi AI', desc:'Determina il livello di rischio dei sistemi AI utilizzati o sviluppati: inaccettabile, alto, limitato o minimo, ai sensi degli artt. 5-7 AI Act.', color:'#7c3aed' },
+    { id:'valutazione', icon:'🔍', label:'Valutazione del Rischio AI', desc:'Analisi della conformità dei sistemi AI ad alto rischio: accuratezza, robustezza, cybersecurity, supervisione umana, trasparenza.', color:'#7c3aed' },
+    { id:'registro', icon:'📝', label:'Registro Sistemi ad Alto Rischio', desc:'Registrazione obbligatoria nella banca dati UE dei sistemi AI ad alto rischio prima dell\'immissione sul mercato (art. 71 AI Act).', color:'#7c3aed' },
+    { id:'requisiti', icon:'✅', label:'Conformità Requisiti Obbligatori', desc:'Verifica dei requisiti per i sistemi ad alto rischio: governance dei dati, documentazione tecnica, log automatici, misure correttive.', color:'#7c3aed' },
+    { id:'documentazione', icon:'📂', label:'Documentazione Tecnica', desc:'Predisposizione e conservazione della documentazione tecnica e della dichiarazione di conformità UE ai sensi degli artt. 11-12 AI Act.', color:'#7c3aed' },
+    { id:'monitoraggio', icon:'📡', label:'Monitoraggio Post-Mercato', desc:'Sistema di monitoraggio continuo delle prestazioni dei sistemi AI dopo il deployment, inclusa la segnalazione di incidenti gravi.', color:'#7c3aed' },
+  ];
+
+  return (
+    <div>
+      <button style={{background:'none',border:'none',cursor:'pointer',fontSize:13,color:'#64748b',fontFamily:'inherit',display:'flex',alignItems:'center',gap:6,marginBottom:20,padding:0,fontWeight:600}} onClick={onBack}>
+        ← {client.ragioneSociale}
+      </button>
+
+      {/* Header */}
+      <div style={{background:'linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)',borderRadius:16,padding:'28px 32px',marginBottom:28,color:'#fff',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',right:-20,top:-20,width:140,height:140,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
+        <div style={{position:'absolute',right:40,bottom:-30,width:100,height:100,borderRadius:'50%',background:'rgba(255,255,255,0.04)'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:12}}>
+          <span style={{fontSize:36}}>🤖</span>
+          <div>
+            <h2 style={{margin:0,fontSize:22,fontWeight:800}}>Modulo AI Act</h2>
+            <div style={{fontSize:13,opacity:.8,marginTop:2}}>Regolamento UE 2024/1689 — Disciplina dell'Intelligenza Artificiale</div>
+          </div>
+        </div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.15)',borderRadius:20,padding:'6px 14px',fontSize:12,fontWeight:700}}>
+          ⏳ Modulo in sviluppo — funzionalità operative disponibili a breve
+        </div>
+      </div>
+
+      {/* Timeline applicabilità */}
+      <div style={{background:'#fff',borderRadius:12,padding:'20px 24px',border:'1px solid #e9d5ff',marginBottom:20}}>
+        <div style={{fontWeight:700,fontSize:13,color:'#3b0764',marginBottom:14}}>📅 Calendario di applicabilità AI Act</div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {[
+            {data:'Ago 2024', evento:'Entrata in vigore del Regolamento', stato:'passato'},
+            {data:'Feb 2025', evento:'Divieto sistemi AI a rischio inaccettabile (art. 5)', stato:'passato'},
+            {data:'Ago 2025', evento:'Applicazione regole governance e GPAI', stato:'corrente'},
+            {data:'Aug 2026', evento:'Applicazione a sistemi AI ad alto rischio (All. I)', stato:'futuro'},
+            {data:'Ago 2027', evento:'Piena applicabilità (inclusi sistemi embedded)', stato:'futuro'},
+          ].map(r=>(
+            <div key={r.data} style={{display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:80,fontSize:11,fontWeight:700,color:r.stato==='corrente'?'#7c3aed':r.stato==='passato'?'#16a34a':'#94a3b8',flexShrink:0}}>{r.data}</div>
+              <div style={{width:10,height:10,borderRadius:'50%',background:r.stato==='corrente'?'#7c3aed':r.stato==='passato'?'#16a34a':'#cbd5e1',flexShrink:0}}/>
+              <div style={{fontSize:13,color:r.stato==='futuro'?'#94a3b8':'#374151',fontWeight:r.stato==='corrente'?700:400}}>{r.evento}</div>
+              {r.stato==='corrente'&&<span style={{fontSize:10,fontWeight:700,padding:'1px 7px',borderRadius:20,background:'#f5f3ff',color:'#7c3aed'}}>In corso</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards sezioni */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}}>
+        {SEZIONI.map(s=>(
+          <div key={s.id} style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e5eaf0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',opacity:.85,position:'relative',overflow:'hidden'}}>
+            <div style={{position:'absolute',top:12,right:12,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'#f5f3ff',color:'#7c3aed'}}>Prossimamente</div>
+            <div style={{width:42,height:42,borderRadius:10,background:'#f5f3ff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,marginBottom:12}}>{s.icon}</div>
+            <div style={{fontWeight:700,fontSize:14,color:'#0f172a',marginBottom:6}}>{s.label}</div>
+            <div style={{fontSize:12,color:'#64748b',lineHeight:1.6}}>{s.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Classi di rischio */}
+      <div style={{marginTop:28,background:'#faf5ff',borderRadius:12,padding:'20px 24px',border:'1px solid #e9d5ff'}}>
+        <div style={{fontWeight:700,fontSize:13,color:'#3b0764',marginBottom:12}}>🎯 Livelli di rischio AI Act</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+          {[
+            {livello:'Inaccettabile', color:'#dc2626', bg:'#fef2f2', desc:'Vietati — es. social scoring, manipolazione subliminale'},
+            {livello:'Alto', color:'#d97706', bg:'#fffbeb', desc:'Requisiti obbligatori — es. CV screening, sistemi biometrici'},
+            {livello:'Limitato', color:'#2563eb', bg:'#eff6ff', desc:'Obblighi di trasparenza — es. chatbot, deepfake'},
+            {livello:'Minimo', color:'#16a34a', bg:'#f0fdf4', desc:'Nessun obbligo specifico — es. filtri spam, AI nei videogiochi'},
+          ].map(r=>(
+            <div key={r.livello} style={{padding:'12px 14px',borderRadius:8,background:r.bg,border:`1px solid ${r.color}33`}}>
+              <div style={{fontWeight:700,fontSize:12,color:r.color,marginBottom:4}}>{r.livello}</div>
+              <div style={{fontSize:11,color:'#64748b',lineHeight:1.5}}>{r.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- VIEW DOC ----
 function ViewDoc({doc,onCopy,copied,onBack,onExport}) {
   const dt=DOC_TYPES.find(d=>d.id===doc.tipo);
@@ -774,6 +1022,7 @@ function ApiKeyModal({apiKey, onSave, onClose}) {
 export default function App() {
   const [page,setPage]=useState('dashboard');
   const [prevPage,setPrev]=useState('client');
+  const [selModule,setSelModule]=useState(null); // 'gdpr'|'nis2'|'aiact'
   const [clients,setClients]=useState([]);
   const [selClient,setSelClient]=useState(null);
   const [editClient,setEditClient]=useState(null);
@@ -935,7 +1184,7 @@ export default function App() {
   }
 
   async function handleDeleteClient(id){await saveClients(clients.filter(c=>c.id!==id));if(selClient?.id===id)setSelClient(null);setPage('dashboard');}
-  async function openClient(c){setSelClient(c);await loadClient(c);setPage('client');}
+  async function openClient(c){setSelClient(c);setSelModule(null);await loadClient(c);setPage('modules');}
 
   async function handleSaveSettings(s) {
     const updated={...docSettings,[settingsDt.id]:s};
@@ -1070,7 +1319,13 @@ export default function App() {
         {selClient&&(
           <>
             <span style={{color:'rgba(255,255,255,.3)',padding:'0 2px',fontSize:12}}>›</span>
-            <NavBtn label={`🏢 ${selClient.ragioneSociale}`} pg="client" onClick={()=>setPage('client')}/>
+            <NavBtn label={`🏢 ${selClient.ragioneSociale}`} pg="modules" onClick={()=>setPage('modules')}/>
+          </>
+        )}
+        {selModule&&page!=='modules'&&(
+          <>
+            <span style={{color:'rgba(255,255,255,.3)',padding:'0 2px',fontSize:12}}>›</span>
+            <NavBtn label={selModule==='gdpr'?'🔐 GDPR':selModule==='nis2'?'🛡️ NIS2':'🤖 AI Act'} pg="client" onClick={()=>setPage('client')}/>
           </>
         )}
         {page==='generate'&&selDt&&(
@@ -1115,8 +1370,25 @@ export default function App() {
           <ClientForm
             initial={editClient}
             onSave={handleSaveClient}
-            onCancel={()=>setPage(selClient?'client':'dashboard')}
+            onCancel={()=>setPage(selClient?'modules':'dashboard')}
           />
+        )}
+        {page==='modules'&&selClient&&(
+          <ModuleSelector
+            client={selClient}
+            onSelect={mod=>{
+              setSelModule(mod);
+              if(mod==='gdpr') setPage('client');
+              else if(mod==='nis2') setPage('nis2');
+              else if(mod==='aiact') setPage('aiact');
+            }}
+          />
+        )}
+        {page==='nis2'&&selClient&&(
+          <NIS2Page client={selClient} onBack={()=>setPage('modules')}/>
+        )}
+        {page==='aiact'&&selClient&&(
+          <AIActPage client={selClient} onBack={()=>setPage('modules')}/>
         )}
         {page==='client'&&selClient&&(
           <ClientDetail
@@ -1125,7 +1397,7 @@ export default function App() {
             assets={clientAssets}
             suppliers={clientSuppliers}
             docSettings={docSettings}
-            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setExtraPrompt('');setUseRegistro(false);setChatHistory([]);setFollowUpPrompt('');setPrev('client');setPage('generate');}}
+            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setExtraPrompt('');setUseRegistro(false);setChatHistory([]);setFollowUpPrompt('');setPrev('client');setSelModule('gdpr');setPage('generate');}}
             onView={doc=>{setViewDoc(doc);setPrev('client');setPage('view');}}
             onDeleteDoc={handleDeleteDoc}
             onExport={exportToDoc}
