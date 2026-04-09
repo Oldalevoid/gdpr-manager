@@ -68,41 +68,6 @@ const DOC_TYPES = [
 const DEFAULT_SYSTEM = (docLabel) =>
   `Sei un esperto consulente GDPR e privacy italiano con 15 anni di esperienza. Genera documenti professionali, dettagliati e conformi alla normativa vigente (GDPR, D.Lgs. 196/2003 e successive modifiche). Scrivi sempre in italiano. Il documento deve essere immediatamente utilizzabile senza ulteriori modifiche. Non aggiungere note o disclaimer sul fatto che il documento è generato da AI.`;
 
-const REGISTRO_SYSTEM_PROMPT = `## Istruzioni per l'agente
-
-Sei un assistente esperto in protezione dei dati personali, compliance GDPR e mappatura dei trattamenti. Il tuo compito è supportare l'utente nella predisposizione di un **Registro dei trattamenti ai sensi dell'art. 30 del GDPR**, strutturato in modo completo, ordinato, verificabile e immediatamente utilizzabile come base di lavoro.
-
-Quando l'utente ti indica il **settore dell'azienda**, ed eventualmente ulteriori informazioni sull'organizzazione, devi:
-
-### 1. Comprendere il contesto aziendale
-
-Devi analizzare il settore indicato e ricostruire il modello organizzativo presumibile dell'azienda, considerando, ove ragionevolmente desumibili: tipo di attività svolta; dimensione e struttura organizzativa; funzioni aziendali presumibilmente presenti; categorie di interessati coinvolte; flussi di dati tipici del settore. Se l'utente fornisce poche informazioni, non devi fermarti. Devi comunque elaborare una prima bozza ragionata, segnalando con chiarezza ciò che è stato inferito e ciò che deve essere confermato.
-
-### 2. Stimare i trattamenti in via probabilistica
-
-A partire dal settore indicato, individua i trattamenti di dati personali che, con maggiore probabilità, risultano tipici di un'organizzazione appartenente a quel comparto. Considera almeno, quando pertinenti: gestione del personale, selezione del personale, amministrazione/contabilità/fiscalità, gestione clienti, gestione fornitori, gestione contratti, corrispondenza, sistemi IT e log, assistenza clienti, marketing/newsletter/CRM, videosorveglianza, contenzioso, compliance, audit interni, whistleblowing, trattamenti specifici del settore.
-
-### 3. Distinguere sempre il grado di attendibilità
-
-Per ogni trattamento: **confermato** se deriva da informazioni espresse; **altamente probabile** se normalmente presente nel settore; **plausibile da verificare** se ragionevole ma non certo.
-
-### 4. Redigere il registro in forma tabellare
-
-Predisponi il Registro in **tabella**, ogni riga = un trattamento. Campi obbligatori per ciascuno:
-1. ID trattamento 2. Denominazione 3. Area/funzione aziendale 4. Descrizione sintetica 5. Finalità 6. Base giuridica 7. Categorie di interessati 8. Categorie di dati personali 9. Categorie particolari ex art.9 10. Dati penali ex art.10 11. Origine dei dati 12. Modalità del trattamento 13. Strumenti/sistemi/applicativi 14. Categorie di destinatari 15. Responsabili del trattamento o terzi 16. Trasferimenti extra SEE 17. Garanzie per trasferimenti extra SEE 18. Termini di conservazione 19. Misure tecniche e organizzative 20. Obbligatorietà del conferimento 21. Profilazione o decisioni automatizzate 22. Necessità DPIA: sì/no/da valutare 23. Consultazione preventiva: sì/no/da valutare 24. Livello di attendibilità 25. Note e punti da validare
-
-### 5. Strutturare l'output finale
-
-**A. Profilo aziendale assunto** — settore, modello organizzativo presumibile, interessati, livello di certezza.
-**B. Assunzioni metodologiche** — cosa è stato fornito, inferito, ricostruito per analogia, cosa richiede conferma.
-**C. Elenco trattamenti individuati** — elenco numerato con nome, descrizione breve, livello di attendibilità.
-**D. Registro in tabella** — tabella completa con tutti i 25 campi.
-**E. Trattamenti e campi da validare con priorità** — trattamenti da confermare, campi incompleti, punti di attenzione.
-**F. Dati utili per la versione definitiva** — informazioni aggiuntive che l'utente dovrebbe fornire.
-
-### 6. Criteri giuridici
-
-Usa formulazioni professionali e giuridicamente corrette. Non attribuire consenso quando esistono basi giuridiche più appropriate. Segnala possibili DPIA. Indica trasferimenti extra SEE (specialmente cloud/SaaS non europei). Misure di sicurezza ragionevoli e proporzionate. Scrivi sempre in italiano.`;
 
 const DEFAULT_PARAMS = { temperature: 0.3, maxTokens: 4000 };
 
@@ -478,8 +443,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
                     <div style={{fontWeight:700,color:'#0f172a',fontSize:14}}>{dt.label}</div>
                     <div style={{fontSize:11,color:dt.color,fontWeight:600,marginTop:1}}>{dt.desc}</div>
                   </div>
-                  <div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
-                    {dt.id==='registro'&&<span style={{fontSize:10,background:'#fff7ed',color:'#f97316',fontWeight:700,padding:'2px 6px',borderRadius:20}}>🟠 Claude</span>}
+                  <div style={{display:'flex',gap:4,alignItems:'center'}}>
                     {hasSettings&&<span style={{fontSize:10,background:dt.color+'18',color:dt.color,fontWeight:700,padding:'2px 6px',borderRadius:20}}>⚙️ custom</span>}
                     {doc&&<span style={{background:'#dcfce7',color:'#16a34a',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20}}>✅</span>}
                   </div>
@@ -747,39 +711,6 @@ function ApiKeyModal({apiKey, onSave, onClose}) {
   );
 }
 
-// ---- ANTHROPIC KEY MODAL ----
-function AnthropicKeyModal({apiKey, onSave, onClose}) {
-  const [val, setVal] = useState(apiKey || '');
-  return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-      <div style={{...C.card,maxWidth:520,width:'100%',padding:28}}>
-        <h3 style={{margin:'0 0 8px',color:'#0f172a',fontSize:17}}>🟠 API Key Anthropic (Claude)</h3>
-        <p style={{margin:'0 0 4px',fontSize:13,color:'#64748b',lineHeight:1.6}}>
-          Usata per il documento <strong>📋 Registro dei Trattamenti</strong> (Art. 30 GDPR).<br/>
-          Questo documento utilizza il modello <strong>Claude Sonnet</strong> con un agente specializzato.
-        </p>
-        <div style={{margin:'0 0 16px',padding:'10px 14px',background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:8,fontSize:12,color:'#92400e'}}>
-          Ottieni la tua API key su <strong>console.anthropic.com</strong> → API Keys.<br/>
-          La chiave viene salvata solo nel browser (localStorage).
-        </div>
-        <input
-          type="password"
-          value={val}
-          onChange={e=>setVal(e.target.value)}
-          placeholder="sk-ant-..."
-          style={{...C.inp,marginBottom:16,fontFamily:'"Courier New",monospace',letterSpacing:'0.5px'}}
-          onFocus={e=>e.target.style.borderColor='#f97316'}
-          onBlur={e=>e.target.style.borderColor='#dde3ec'}
-        />
-        <div style={C.row}>
-          <button style={C.btn('#f97316')} onClick={()=>onSave(val.trim())}>💾 Salva</button>
-          <button style={C.btn('#f1f5f9','#374151')} onClick={onClose}>Annulla</button>
-          {apiKey && <button style={C.btn('#fff5f5','#dc2626')} onClick={()=>onSave('')}>🗑️ Rimuovi</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ---- MAIN APP ----
 export default function App() {
@@ -815,8 +746,6 @@ export default function App() {
   const [error,setError]=useState(null);
   const [apiKey,setApiKey]=useState(()=>localStorage.getItem('gdpr:groqKey')||'');
   const [showApiKey,setShowApiKey]=useState(false);
-  const [anthropicKey,setAnthropicKey]=useState(()=>localStorage.getItem('gdpr:anthropicKey')||'');
-  const [showAnthropicKey,setShowAnthropicKey]=useState(false);
 
   useEffect(()=>{
     async function load() {
@@ -950,12 +879,6 @@ export default function App() {
     setShowApiKey(false);
   }
 
-  function handleSaveAnthropicKey(key) {
-    setAnthropicKey(key);
-    if(key) localStorage.setItem('gdpr:anthropicKey', key);
-    else localStorage.removeItem('gdpr:anthropicKey');
-    setShowAnthropicKey(false);
-  }
 
   function buildRegistroContext() {
     if(!useRegistro || !clientTrattamenti.length) return '';
@@ -984,41 +907,14 @@ export default function App() {
     return text;
   }
 
-  async function callAnthropic(messages, maxTokens, temperature) {
-    const systemMsg = messages.find(m=>m.role==='system');
-    const chatMsgs  = messages.filter(m=>m.role!=='system');
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: maxTokens,
-        temperature,
-        system: systemMsg?.content || '',
-        messages: chatMsgs,
-      })
-    });
-    const data = await r.json();
-    if(!r.ok||data.error) throw new Error(`Errore Anthropic (${r.status}): ${data.error?.message||JSON.stringify(data.error||data)}`);
-    const text = data.content?.[0]?.text?.trim();
-    if(!text) throw new Error('Risposta vuota da Anthropic. Riprova.');
-    return text;
-  }
 
   async function handleGenerate() {
-    const isRegistro = selDt.id === 'registro';
-    if(isRegistro && !anthropicKey) { setError('API Key Anthropic mancante. Configurala tramite il pulsante "🟠 Anthropic" in alto a destra.'); return; }
-    if(!isRegistro && !apiKey) { setError('API Key Groq mancante. Configurala tramite il pulsante "⚙️ Groq" in alto a destra.'); return; }
+    if(!apiKey) { setError('API Key Groq mancante. Configurala tramite il pulsante "⚙️ API Key" in alto a destra.'); return; }
     setGenerating(true); setError(null); setAutoSaved(false);
     const s = docSettings[selDt.id]||{};
-    const systemPrompt = isRegistro ? REGISTRO_SYSTEM_PROMPT : (s.systemPrompt || DEFAULT_SYSTEM(selDt.label));
+    const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
     const temperature  = s.temperature ?? DEFAULT_PARAMS.temperature;
-    const maxTokens    = isRegistro ? Math.max(s.maxTokens ?? DEFAULT_PARAMS.maxTokens, 4000) : (s.maxTokens ?? DEFAULT_PARAMS.maxTokens);
+    const maxTokens    = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
     try {
       let userContent = buildPrompt(selDt.id, selClient, inputs, s, clientAssets, clientSuppliers);
       userContent += buildRegistroContext();
@@ -1027,9 +923,7 @@ export default function App() {
         {role:'system', content: systemPrompt},
         {role:'user',   content: userContent},
       ];
-      const text = isRegistro
-        ? await callAnthropic(messages, maxTokens, temperature)
-        : await callGroq(messages, maxTokens, temperature);
+      const text = await callGroq(messages, maxTokens, temperature);
       setChatHistory([
         {role:'user',      content: userContent},
         {role:'assistant', content: text},
@@ -1043,21 +937,16 @@ export default function App() {
   }
 
   async function handleFollowUp() {
-    const isRegistro = selDt.id === 'registro';
-    if(!followUpPrompt.trim()) return;
-    if(isRegistro && !anthropicKey) return;
-    if(!isRegistro && !apiKey) return;
+    if(!followUpPrompt.trim()||!apiKey) return;
     setFollowingUp(true); setError(null);
     const s = docSettings[selDt.id]||{};
-    const systemPrompt = isRegistro ? REGISTRO_SYSTEM_PROMPT : (s.systemPrompt || DEFAULT_SYSTEM(selDt.label));
+    const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
     const temperature  = s.temperature ?? DEFAULT_PARAMS.temperature;
-    const maxTokens    = isRegistro ? Math.max(s.maxTokens ?? DEFAULT_PARAMS.maxTokens, 4000) : (s.maxTokens ?? DEFAULT_PARAMS.maxTokens);
+    const maxTokens    = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
     try {
       const newHistory = [...chatHistory, {role:'user', content: followUpPrompt.trim()}];
       const messages   = [{role:'system', content: systemPrompt}, ...newHistory];
-      const text = isRegistro
-        ? await callAnthropic(messages, maxTokens, temperature)
-        : await callGroq(messages, maxTokens, temperature);
+      const text = await callGroq(messages, maxTokens, temperature);
       const updatedHistory = [...newHistory, {role:'assistant', content: text}];
       setChatHistory(updatedHistory);
       setGenDoc(text);
@@ -1106,19 +995,15 @@ export default function App() {
         )}
         <div style={{flex:1}}/>
         <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0'}}>
+          {apiKey
+            ? <span style={{color:'rgba(255,255,255,.55)',fontSize:11,fontWeight:500}}>🔑 Key attiva</span>
+            : <span style={{color:'#fbbf24',fontSize:11,fontWeight:700}}>⚠️ API Key mancante</span>
+          }
           <button
-            style={{...C.btn(anthropicKey?'rgba(249,115,22,.25)':'rgba(249,115,22,.12)','#fff',true),fontSize:12,border:anthropicKey?'1px solid rgba(249,115,22,.5)':'1px solid rgba(249,115,22,.2)'}}
-            onClick={()=>setShowAnthropicKey(true)}
-            title="API Key Anthropic — usata per il Registro dei Trattamenti"
-          >
-            {anthropicKey ? '🟠 Anthropic ✓' : '🟠 Anthropic'}
-          </button>
-          <button
-            style={{...C.btn(apiKey?'rgba(255,255,255,.15)':'rgba(251,191,36,.15)','#fff',true),fontSize:12}}
+            style={{...C.btn('rgba(255,255,255,.15)','#fff',true),fontSize:12}}
             onClick={()=>setShowApiKey(true)}
-            title="API Key Groq — usata per tutti gli altri documenti"
           >
-            {apiKey ? '⚙️ Groq ✓' : '⚠️ Groq'}
+            ⚙️ API Key
           </button>
         </div>
       </nav>
@@ -1225,13 +1110,6 @@ export default function App() {
           apiKey={apiKey}
           onSave={handleSaveApiKey}
           onClose={()=>setShowApiKey(false)}
-        />
-      )}
-      {showAnthropicKey&&(
-        <AnthropicKeyModal
-          apiKey={anthropicKey}
-          onSave={handleSaveAnthropicKey}
-          onClose={()=>setShowAnthropicKey(false)}
         />
       )}
     </div>
