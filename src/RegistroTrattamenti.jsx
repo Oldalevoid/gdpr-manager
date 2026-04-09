@@ -638,7 +638,7 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
 }
 
 // ---- ROOT ----
-export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onGoToAnalisi, apiKey }) {
+export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onSaveManyTrattamenti, onDeleteTrattamento, onSaveMisure, onGoToAnalisi, apiKey }) {
   const [view, setView] = useState('list');
   const [editing, setEditing] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -654,11 +654,10 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
   };
 
   const handleAISave = async (arr) => {
-    // Salva tutti i trattamenti generati dall'AI, raccogliendo anche eventuali nuove funzioni
     const nuoveFunzioni = arr.map(t=>t.funzioneAziendale).filter(f=>f&&!funzioni.includes(f));
     const uniche = [...new Set(nuoveFunzioni)];
     if(uniche.length>0) onSaveFunzioni([...funzioni,...uniche]);
-    for(const t of arr) await onSaveTrattamento(t);
+    await onSaveManyTrattamenti(arr);
     setShowAI(false);
   };
 

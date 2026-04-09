@@ -400,7 +400,7 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
 }
 
 // ---- CLIENT DETAIL ----
-function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni, apiKey}) {
+function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni, apiKey, onSaveManyTrattamenti}) {
   const [tab,setTab]=useState('docs');
   const [analisiSelId,setAnalisiSelId]=useState(null);
   const getDoc=id=>{
@@ -469,7 +469,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
-      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure} apiKey={apiKey}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onSaveManyTrattamenti={onSaveManyTrattamenti} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure} apiKey={apiKey}
         onGoToAnalisi={id=>{setAnalisiSelId(id);setTab('rischi');}}/>}
       {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi} initialSelId={analisiSelId}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
@@ -884,9 +884,16 @@ export default function App() {
   };
 
   const saveTrattamento=async t=>{
-    const arr=[...clientTrattamenti.filter(x=>x.id!==t.id),t];
-    setClientTrattamenti(arr);
+    setClientTrattamenti(prev=>[...prev.filter(x=>x.id!==t.id),t]);
     await supabase.from('trattamenti').upsert({id:t.id,client_id:selClient.id,data:t,created_at:t.createdAt});
+  };
+  const saveManyTrattamenti=async arr=>{
+    setClientTrattamenti(prev=>{
+      const map=Object.fromEntries(prev.map(x=>[x.id,x]));
+      arr.forEach(t=>{map[t.id]=t;});
+      return Object.values(map);
+    });
+    await supabase.from('trattamenti').upsert(arr.map(t=>({id:t.id,client_id:selClient.id,data:t,created_at:t.createdAt})));
   };
   const deleteTrattamento=async id=>{
     setClientTrattamenti(p=>p.filter(x=>x.id!==id));
@@ -1151,6 +1158,7 @@ export default function App() {
             funzioni={selClient?.funzioni||[]}
             onSaveFunzioni={saveFunzioni}
             apiKey={apiKey}
+            onSaveManyTrattamenti={saveManyTrattamenti}
           />
         )}
         {page==='generate'&&selDt&&selClient&&(
