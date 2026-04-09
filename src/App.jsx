@@ -10,14 +10,6 @@ const PRIMARY = '#1a3a5c';
 const ACCENT = '#2563eb';
 
 const DOC_TYPES = [
-  { id:'registro', label:'Registro dei Trattamenti', icon:'📋', desc:'Art. 30 GDPR', color:'#2563eb',
-    fields:[
-      {id:'tipoDati',label:'Tipologie di dati trattati',type:'textarea',ph:'es. anagrafici, contrattuali, navigazione...'},
-      {id:'finalita',label:'Finalità dei trattamenti',type:'textarea',ph:'es. gestione clienti, marketing, adempimenti fiscali...'},
-      {id:'responsabili',label:'Responsabili esterni del trattamento',type:'textarea',ph:'es. commercialista, provider hosting...'},
-      {id:'retention',label:'Tempi di conservazione',type:'textarea',ph:'es. dati fiscali 10 anni, marketing 2 anni...'},
-      {id:'sicurezza',label:'Misure di sicurezza adottate',type:'textarea',ph:'es. backup, antivirus, crittografia, 2FA...'},
-    ]},
   { id:'informativa', label:'Informativa Privacy', icon:'📄', desc:'Art. 13/14 GDPR', color:'#7c3aed',
     fields:[
       {id:'interessati',label:'Categorie di interessati',type:'textarea',ph:'es. clienti, dipendenti, fornitori...'},
@@ -80,7 +72,6 @@ function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const tmplStr = settings?.templateText ? `\n\nTEMPLATE DI RIFERIMENTO (segui questa struttura adattando il contenuto al cliente):\n${settings.templateText}` : '';
   const base = `DATI CLIENTE:\n${ci}${assetStr}${supplierStr}\n`;
   const map = {
-    registro: base+`DOCUMENTO DA GENERARE: Registro delle Attività di Trattamento (Art. 30 GDPR)\nDati trattati: ${inp.tipoDati||'-'}\nFinalità: ${inp.finalita||'-'}\nResponsabili: ${inp.responsabili||'-'}\nRetention: ${inp.retention||'-'}\nSicurezza: ${inp.sicurezza||'-'}\nCrea registro completo con intestazione, schede per ogni categoria di trattamento (finalità, base giuridica, categorie interessati, dati, destinatari, retention, sicurezza), spazio firme.`,
     informativa: base+`DOCUMENTO: Informativa Privacy (Art. 13-14 GDPR)\nTIPO DI INFORMATIVA: ${inp.tipoInformativa||'Clienti'}\nCategorie di interessati: ${inp.interessati||inp.tipoInformativa||'-'}\nCanali di raccolta: ${inp.canali||'-'}\nBase giuridica: ${inp.baseGiuridica||'-'}\nPaesi terzi: ${inp.paesiTerzi||'nessuno'}\nNote: ${inp.dettagli||'-'}${inp.trattamentiDaRegistro?`\n\nTRATTAMENTI GIÀ CENSITI NEL REGISTRO per questa categoria di interessati:\n${inp.trattamentiDaRegistro}\n`:''}\nCrea informativa privacy completa e specifica per la categoria "${inp.tipoInformativa||'Clienti'}", ai sensi dell'art. 13 (o 14) GDPR, con tutti gli elementi obbligatori: titolare e DPO, finalità e basi giuridiche per ciascuna (usando i trattamenti dal registro se forniti), categorie di dati, destinatari, eventuali trasferimenti extra-SEE, periodo di conservazione, tutti i diritti degli interessati con le modalità di esercizio, diritto di reclamo al Garante.`,
     nomina29: base+`DOCUMENTO: Nomina Incaricato al Trattamento (Art. 29 GDPR, Art. 2-quaterdecies D.Lgs. 196/2003)${inp.funzioneAziendale?`\nFunzione aziendale: ${inp.funzioneAziendale}`:''}\nIncaricato: ${inp.incaricato||'-'}\nRuolo: ${inp.ruolo||'-'}\nTrattamenti assegnati: ${inp.trattamenti||'-'}\nIstruzioni operative: ${inp.istruzioni||'-'}\nCrea nomina formale con riferimenti normativi, designazione, elenco dettagliato dei trattamenti autorizzati con le relative istruzioni operative per ciascuno, obblighi dell'incaricato, divieti, spazio firme.`,
     databreach: base+`DOCUMENTO: Data Breach Policy (Art. 33-34 GDPR)\nReferente: ${inp.referente||'-'}\nSistemi: ${inp.processi||'-'}\nNotifica: ${inp.tempiNotifica||'-'}\nContenimento: ${inp.contenimento||'-'}\nCrea policy completa: definizioni, procedura step-by-step, notifica Garante entro 72h, registro data breach.`,
