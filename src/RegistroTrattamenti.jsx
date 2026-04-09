@@ -16,6 +16,7 @@ function exportExcel(trattamenti, assets, suppliers, misure, clientName) {
   // Sheet 1: Registro riepilogativo
   const registroRows = trattamenti.map(t=>({
     'Nome Trattamento': t.nome||'',
+    'Funzione Aziendale': t.funzioneAziendale||'',
     'Finalità': t.finalita||'',
     'Base Giuridica': t.baseGiuridica||'',
     'Categorie di Dati': t.categorieDati||'',
@@ -119,6 +120,7 @@ async function exportDocx(trattamenti, assets, suppliers, misure, client) {
     sections.push(new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
+        ...(t.funzioneAziendale ? [tableRow('Funzione Aziendale', t.funzioneAziendale)] : []),
         tableRow('Finalità', t.finalita),
         tableRow('Base Giuridica', t.baseGiuridica),
         tableRow('Categorie di Dati Personali', t.categorieDati),
@@ -240,11 +242,21 @@ function MisureLibrary({ misure, onChange }) {
 }
 
 // ---- TRATTAMENTO FORM ----
-const EMPTY_T = { nome:'',finalita:'',baseGiuridica:'',categorieDati:'',categorieInteressati:'',destinatariInterni:'',destinatariEsterni:'',paesiTerzi:'',retention:'',stato:'Attivo',note:'',assetIds:[],supplierIds:[],misurePerAsset:{} };
+const EMPTY_T = { nome:'',funzioneAziendale:'',finalita:'',baseGiuridica:'',categorieDati:'',categorieInteressati:'',destinatariInterni:'',destinatariEsterni:'',paesiTerzi:'',retention:'',stato:'Attivo',note:'',assetIds:[],supplierIds:[],misurePerAsset:{} };
 
-function TrattamentoForm({ initial, assets, suppliers, misure, onSave, onCancel }) {
+function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveFunzioni, onSave, onCancel }) {
   const [f, setF] = useState(initial || EMPTY_T);
+  const [newFunz, setNewFunz] = useState('');
+  const [showAddFunz, setShowAddFunz] = useState(false);
   const u = (k,v) => setF(p=>({...p,[k]:v}));
+
+  const addFunzione = () => {
+    const v = newFunz.trim();
+    if(!v) return;
+    onSaveFunzioni([...funzioni, v]);
+    u('funzioneAziendale', v);
+    setNewFunz(''); setShowAddFunz(false);
+  };
 
   const toggleAsset = id => {
     const cur = f.assetIds||[];
@@ -272,6 +284,30 @@ function TrattamentoForm({ initial, assets, suppliers, misure, onSave, onCancel 
         <SectionTitle>📋 Dati del Trattamento</SectionTitle>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 16px'}}>
           <div style={{gridColumn:'1/-1'}}><Fld id='nome' label='Nome trattamento *' val={f.nome} onChange={u} ph='es. Gestione clienti, Elaborazione paghe...'/></div>
+
+          {/* Funzione aziendale */}
+          <div style={{gridColumn:'1/-1',marginBottom:14}}>
+            <label style={C.lbl}>🏢 Funzione aziendale</label>
+            <div style={{display:'flex',gap:6}}>
+              <select value={f.funzioneAziendale||''} onChange={e=>u('funzioneAziendale',e.target.value)} style={{...C.inp,flex:1}}>
+                <option value=''>Nessuna / Non assegnata</option>
+                {funzioni.map(fn=><option key={fn} value={fn}>{fn}</option>)}
+              </select>
+              <button style={C.btn('#f0fdf4','#16a34a',true)} onClick={()=>setShowAddFunz(v=>!v)} title="Nuova funzione">+ Nuova</button>
+            </div>
+            {showAddFunz && (
+              <div style={{display:'flex',gap:6,marginTop:6}}>
+                <input value={newFunz} onChange={e=>setNewFunz(e.target.value)}
+                  placeholder="es. Ufficio Commerciale, HR, Amministrazione..."
+                  style={{...C.inp,flex:1}}
+                  onKeyDown={e=>{if(e.key==='Enter')addFunzione();}}
+                />
+                <button style={C.btn('#16a34a')} onClick={addFunzione}>✓ Crea</button>
+                <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>{setShowAddFunz(false);setNewFunz('');}}>✕</button>
+              </div>
+            )}
+          </div>
+
           <div style={{gridColumn:'1/-1'}}><Fld id='finalita' label='Finalità *' type='textarea' val={f.finalita} onChange={u} ph='es. Gestione del rapporto contrattuale con i clienti...'/></div>
           <Fld id='baseGiuridica' label='Base giuridica *' val={f.baseGiuridica} onChange={u} options={BASI_GIURIDICHE}/>
           <Fld id='stato' label='Stato' val={f.stato} onChange={u} options={STATI_TRATTAMENTO}/>
@@ -372,6 +408,7 @@ function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpe
           </div>
           <div style={{fontSize:12,color:'#64748b',marginBottom:6,lineHeight:1.5}}>{t.finalita}</div>
           <div style={{display:'flex',gap:10,flexWrap:'wrap',fontSize:11,color:'#94a3b8'}}>
+            {t.funzioneAziendale && <span style={{background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'1px 7px',borderRadius:20,fontSize:10}}>🏢 {t.funzioneAziendale}</span>}
             <span>⚖️ {t.baseGiuridica}</span>
             {assetNames.length>0 && <span>🖥️ {assetNames.length} asset</span>}
             {suppNames.length>0  && <span>🏭 {suppNames.length} fornitor{suppNames.length===1?'e':'i'}</span>}
@@ -412,6 +449,7 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
         <button style={C.btn('#f1f5f9','#374151',true)} onClick={onClose}>✕</button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 24px'}}>
+        {t.funzioneAziendale && <div style={{gridColumn:'1/-1',marginBottom:10}}><span style={{background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'3px 10px',borderRadius:20,fontSize:12}}>🏢 {t.funzioneAziendale}</span></div>}
         <div style={{gridColumn:'1/-1'}}><Row label='Finalità' val={t.finalita}/></div>
         <Row label='Base giuridica' val={t.baseGiuridica}/>
         <Row label='Stato' val={t.stato}/>
@@ -479,7 +517,7 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
 }
 
 // ---- ROOT ----
-export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, onSaveTrattamento, onDeleteTrattamento, onSaveMisure }) {
+export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onDeleteTrattamento, onSaveMisure }) {
   const [view, setView] = useState('list');
   const [editing, setEditing] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -507,7 +545,7 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
         <h2 style={{margin:'0 0 2px',fontSize:16,color:'#0f172a'}}>{editing?'✏️ Modifica Trattamento':'➕ Nuovo Trattamento'}</h2>
       </div>
       <MisureLibrary misure={misure} onChange={onSaveMisure}/>
-      <TrattamentoForm initial={editing} assets={assets} suppliers={suppliers} misure={misure} onSave={handleSave} onCancel={()=>{setView('list');setEditing(null);}}/>
+      <TrattamentoForm initial={editing} assets={assets} suppliers={suppliers} misure={misure} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSave={handleSave} onCancel={()=>{setView('list');setEditing(null);}}/>
     </div>
   );
 

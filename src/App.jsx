@@ -71,6 +71,8 @@ const DEFAULT_SYSTEM = (docLabel) =>
 
 const DEFAULT_PARAMS = { temperature: 0.3, maxTokens: 4000 };
 
+const TIPI_INFORMATIVA = ['Clienti','Fornitori','Candidati','Soci e Amministratori','Sito Internet','Dipendenti e Collaboratori'];
+
 function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const ci = `Ragione Sociale: ${client.ragioneSociale}\nSettore: ${client.settore}\nTitolare: ${client.titolare}\nP.IVA: ${client.piva}\nSede: ${client.sede}${client.dpo?`\nDPO: ${client.dpo}`:''}`;
   const assetStr = assets?.length ? `\nASSET AZIENDALI:\n${assets.map(a=>`- ${a.nome} (${a.categoria}${a.note?', '+a.note:''})`).join('\n')}` : '';
@@ -79,8 +81,8 @@ function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const base = `DATI CLIENTE:\n${ci}${assetStr}${supplierStr}\n`;
   const map = {
     registro: base+`DOCUMENTO DA GENERARE: Registro delle Attività di Trattamento (Art. 30 GDPR)\nDati trattati: ${inp.tipoDati||'-'}\nFinalità: ${inp.finalita||'-'}\nResponsabili: ${inp.responsabili||'-'}\nRetention: ${inp.retention||'-'}\nSicurezza: ${inp.sicurezza||'-'}\nCrea registro completo con intestazione, schede per ogni categoria di trattamento (finalità, base giuridica, categorie interessati, dati, destinatari, retention, sicurezza), spazio firme.`,
-    informativa: base+`DOCUMENTO: Informativa Privacy (Art. 13-14 GDPR)\nInteressati: ${inp.interessati||'-'}\nCanali: ${inp.canali||'-'}\nBase giuridica: ${inp.baseGiuridica||'-'}\nPaesi terzi: ${inp.paesiTerzi||'nessuno'}\nNote: ${inp.dettagli||'-'}\nCrea informativa completa con tutti gli elementi obbligatori, tutti i diritti degli interessati, reclamo al Garante.`,
-    nomina29: base+`DOCUMENTO: Nomina Incaricato al Trattamento (Art. 29 GDPR, Art. 2-quaterdecies D.Lgs. 196/2003)\nIncaricato: ${inp.incaricato||'-'}\nRuolo: ${inp.ruolo||'-'}\nTrattamenti: ${inp.trattamenti||'-'}\nIstruzioni: ${inp.istruzioni||'-'}\nCrea nomina formale con riferimenti normativi, designazione, elenco trattamenti autorizzati, obblighi, spazio firme.`,
+    informativa: base+`DOCUMENTO: Informativa Privacy (Art. 13-14 GDPR)\nTIPO DI INFORMATIVA: ${inp.tipoInformativa||'Clienti'}\nCategorie di interessati: ${inp.interessati||inp.tipoInformativa||'-'}\nCanali di raccolta: ${inp.canali||'-'}\nBase giuridica: ${inp.baseGiuridica||'-'}\nPaesi terzi: ${inp.paesiTerzi||'nessuno'}\nNote: ${inp.dettagli||'-'}${inp.trattamentiDaRegistro?`\n\nTRATTAMENTI GIÀ CENSITI NEL REGISTRO per questa categoria di interessati:\n${inp.trattamentiDaRegistro}\n`:''}\nCrea informativa privacy completa e specifica per la categoria "${inp.tipoInformativa||'Clienti'}", ai sensi dell'art. 13 (o 14) GDPR, con tutti gli elementi obbligatori: titolare e DPO, finalità e basi giuridiche per ciascuna (usando i trattamenti dal registro se forniti), categorie di dati, destinatari, eventuali trasferimenti extra-SEE, periodo di conservazione, tutti i diritti degli interessati con le modalità di esercizio, diritto di reclamo al Garante.`,
+    nomina29: base+`DOCUMENTO: Nomina Incaricato al Trattamento (Art. 29 GDPR, Art. 2-quaterdecies D.Lgs. 196/2003)${inp.funzioneAziendale?`\nFunzione aziendale: ${inp.funzioneAziendale}`:''}\nIncaricato: ${inp.incaricato||'-'}\nRuolo: ${inp.ruolo||'-'}\nTrattamenti assegnati: ${inp.trattamenti||'-'}\nIstruzioni operative: ${inp.istruzioni||'-'}\nCrea nomina formale con riferimenti normativi, designazione, elenco dettagliato dei trattamenti autorizzati con le relative istruzioni operative per ciascuno, obblighi dell'incaricato, divieti, spazio firme.`,
     databreach: base+`DOCUMENTO: Data Breach Policy (Art. 33-34 GDPR)\nReferente: ${inp.referente||'-'}\nSistemi: ${inp.processi||'-'}\nNotifica: ${inp.tempiNotifica||'-'}\nContenimento: ${inp.contenimento||'-'}\nCrea policy completa: definizioni, procedura step-by-step, notifica Garante entro 72h, registro data breach.`,
     diritti: base+`DOCUMENTO: Policy Gestione Diritti degli Interessati (Art. 15-22 GDPR)\nReferente: ${inp.referente||'-'}\nModalità: ${inp.modalita||'-'}\nTempi: ${inp.tempiRisposta||'-'}\nCrea policy con tutti i diritti, procedura ricezione richieste, tempi risposta e proroghe, registro richieste.`,
     regolamento: base+`DOCUMENTO: Regolamento Utilizzo Strumenti Informatici (GDPR, D.Lgs.196/2003, Provv.Garante 2007, Art.4 L.300/70)\nStrumenti: ${inp.strumenti||'-'}\nPolitiche: ${inp.politiche||'-'}\nMonitoraggio: ${inp.monitoraggio||'-'}\nSanzioni: ${inp.sanzioni||'-'}\nCrea regolamento completo con disciplina per ogni strumento, informativa Art.4 L.300/70, sanzioni graduate, firma presa visione.`,
@@ -353,7 +355,11 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
   const [tab,setTab]=useState(DOC_TYPES[0].id);
   const [delId,setDelId]=useState(null);
   const dt=DOC_TYPES.find(d=>d.id===tab);
-  const filtered=docs.filter(d=>d.tipo===tab).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const filtered=docs.filter(d=>{
+    if(tab==='informativa') return d.tipo.startsWith('informativa');
+    if(tab==='nomina29') return d.tipo.startsWith('nomina29');
+    return d.tipo===tab;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   return (
     <div>
       <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
@@ -394,10 +400,13 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
 }
 
 // ---- CLIENT DETAIL ----
-function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach}) {
+function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni}) {
   const [tab,setTab]=useState('docs');
-  const getDoc=id=>docs.find(d=>d.tipo===id);
-  const pct=Math.round((docs.length/DOC_TYPES.length)*100);
+  const getDoc=id=>{
+    if(id==='informativa') return docs.find(d=>d.tipo.startsWith('informativa'));
+    if(id==='nomina29') return docs.find(d=>d.tipo.startsWith('nomina29'));
+    return docs.find(d=>d.tipo===id);
+  };
   const TB=({id,label,badge})=>(
     <button onClick={()=>setTab(id)} style={{background:'none',border:'none',borderBottom:tab===id?`2px solid ${ACCENT}`:'2px solid transparent',color:tab===id?ACCENT:'#64748b',fontWeight:tab===id?700:500,fontSize:14,cursor:'pointer',padding:'10px 16px',fontFamily:'inherit',display:'flex',alignItems:'center',gap:6}}>
       {label}{badge!==undefined&&<span style={{background:tab===id?ACCENT+'18':'#f1f5f9',color:tab===id?ACCENT:'#64748b',borderRadius:12,padding:'1px 7px',fontSize:11,fontWeight:700}}>{badge}</span>}
@@ -415,8 +424,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
           </div>
         </div>
         <div style={{textAlign:'right',flexShrink:0}}>
-          <div style={{fontSize:13,fontWeight:700,color:pct===100?'#16a34a':'#64748b'}}>{docs.length}/{DOC_TYPES.length} doc</div>
-          <div style={{background:'#f1f5f9',borderRadius:8,height:5,width:110,marginTop:5,marginLeft:'auto'}}><div style={{background:pct===100?'#16a34a':ACCENT,borderRadius:8,height:'100%',width:`${pct}%`,transition:'width .5s'}}/></div>
+          <div style={{fontSize:13,fontWeight:600,color:'#64748b'}}>{docs.length} doc generati</div>
         </div>
       </div>
       <div style={{background:'#fff',borderLeft:'1px solid #e5eaf0',borderRight:'1px solid #e5eaf0',display:'flex',gap:0,borderBottom:'1px solid #e5eaf0',marginBottom:20,overflowX:'auto'}}>
@@ -460,7 +468,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
-      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
       {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
@@ -490,7 +498,6 @@ function Dashboard({clients,onOpen,onNew,onEdit,onDelete}) {
       ):(
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(285px,1fr))',gap:14}}>
           {clients.map(c=>{
-            const pct=Math.round((c._docCount||0)/DOC_TYPES.length*100);
             return (
               <div key={c.id} style={{...C.card,transition:'all .18s'}}
                 onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 18px rgba(37,99,235,.1)';e.currentTarget.style.borderColor='#93c5fd';}}
@@ -501,9 +508,8 @@ function Dashboard({clients,onOpen,onNew,onEdit,onDelete}) {
                     <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:'#0f172a',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.ragioneSociale}</div><div style={{fontSize:12,color:'#64748b'}}>{c.settore}</div></div>
                   </div>
                   <div style={{fontSize:12,color:'#64748b',marginBottom:2}}>👤 {c.titolare} · 🏛️ {c.piva}</div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10}}>
-                    <span style={{fontSize:12,fontWeight:600,color:pct===100?'#16a34a':pct>0?'#d97706':'#94a3b8'}}>{c._docCount||0}/{DOC_TYPES.length} doc</span>
-                    <div style={{background:'#f1f5f9',borderRadius:8,height:5,width:80}}><div style={{background:pct===100?'#16a34a':ACCENT,borderRadius:8,height:'100%',width:`${pct}%`,transition:'width .5s'}}/></div>
+                  <div style={{marginTop:10}}>
+                    <span style={{fontSize:12,fontWeight:600,color:(c._docCount||0)>0?'#2563eb':'#94a3b8'}}>{c._docCount||0} doc generati</span>
                   </div>
                 </div>
                 <div style={{borderTop:'1px solid #f1f5f9',paddingTop:10,...C.row}}>
@@ -547,7 +553,7 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,useRegistro,setUseRegistro,hasRegistro,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,useRegistro,setUseRegistro,hasRegistro,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
@@ -572,6 +578,65 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
             </div>
             <button style={C.btn('#f8fafc','#475569',true)} onClick={()=>onOpenSettings(dt)} title="Impostazioni agente">⚙️ Settings</button>
           </div>
+
+          {/* Informativa: seleziona tipo */}
+          {dt.id==='informativa'&&(
+            <div style={{marginBottom:16,padding:'12px 14px',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:8}}>
+              <label style={C.lbl}>📋 Tipo di informativa *</label>
+              <select value={inputs.tipoInformativa||''} onChange={e=>u('tipoInformativa',e.target.value)} style={C.inp}
+                onFocus={fo} onBlur={bl}>
+                <option value=''>Seleziona tipo...</option>
+                {TIPI_INFORMATIVA.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+              {inputs.tipoInformativa&&funzioni.length>0&&(
+                <div style={{marginTop:10}}>
+                  <label style={{...C.lbl,marginBottom:6}}>📂 Includi trattamenti per funzione aziendale</label>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {funzioni.map(fn=>{
+                      const sel=(inputs.funzioniSelezionate||[]).includes(fn);
+                      return (
+                        <button key={fn} onClick={()=>{
+                          const cur=inputs.funzioniSelezionate||[];
+                          const next=sel?cur.filter(x=>x!==fn):[...cur,fn];
+                          const trattFiltrati=clientTrattamenti.filter(t=>next.includes(t.funzioneAziendale));
+                          const trattStr=trattFiltrati.map(t=>`- ${t.nome}: ${t.finalita} (Base: ${t.baseGiuridica}, Interessati: ${t.categorieInteressati||'—'}, Dati: ${t.categorieDati||'—'}, Retention: ${t.retention||'—'})`).join('\n');
+                          setInputs(p=>({...p,funzioniSelezionate:next,trattamentiDaRegistro:trattStr}));
+                        }} style={{...C.btn(sel?ACCENT:'#f1f5f9',sel?'#fff':'#374151',true)}}>
+                          {sel?'✓ ':''}{fn}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(inputs.funzioniSelezionate||[]).length>0&&(
+                    <div style={{marginTop:8,padding:'6px 10px',background:'#dcfce7',borderRadius:6,fontSize:12,color:'#166534'}}>
+                      ✅ {clientTrattamenti.filter(t=>(inputs.funzioniSelezionate||[]).includes(t.funzioneAziendale)).length} trattamenti inclusi dal Registro
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Nomina29: seleziona funzione aziendale e auto-popola trattamenti */}
+          {dt.id==='nomina29'&&funzioni.length>0&&(
+            <div style={{marginBottom:16,padding:'12px 14px',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8}}>
+              <label style={C.lbl}>🏢 Funzione aziendale</label>
+              <select value={inputs.funzioneAziendale||''} onChange={e=>{
+                const fn=e.target.value;
+                const tratt=clientTrattamenti.filter(t=>t.funzioneAziendale===fn);
+                const trattStr=tratt.map(t=>`- ${t.nome}: ${t.finalita} (Base: ${t.baseGiuridica})`).join('\n');
+                setInputs(p=>({...p,funzioneAziendale:fn,trattamenti:trattStr||p.trattamenti}));
+              }} style={C.inp} onFocus={fo} onBlur={bl}>
+                <option value=''>Seleziona funzione...</option>
+                {funzioni.map(fn=><option key={fn} value={fn}>{fn}</option>)}
+              </select>
+              {inputs.funzioneAziendale&&(()=>{const n=clientTrattamenti.filter(t=>t.funzioneAziendale===inputs.funzioneAziendale).length;return n>0?(
+                <div style={{marginTop:8,padding:'6px 10px',background:'#dcfce7',borderRadius:6,fontSize:12,color:'#166534'}}>
+                  ✅ {n} trattamento{n!==1?'i':''} di "{inputs.funzioneAziendale}" importati automaticamente
+                </div>
+              ):null;})()}
+            </div>
+          )}
 
           {dt.fields.map(f=><Fld key={f.id} id={f.id} label={f.label} type={f.type} val={inputs[f.id]} onChange={u} ph={f.ph}/>)}
 
@@ -854,6 +919,13 @@ export default function App() {
     await supabase.from('data_breaches').delete().eq('id',id);
   };
 
+  const saveFunzioni = async arr => {
+    const updated = {...selClient, funzioni: arr};
+    setSelClient(updated);
+    setClients(clients.map(c=>c.id===selClient.id?updated:c));
+    await supabase.from('clients').upsert({id:selClient.id, data:updated});
+  };
+
   async function handleSaveClient(form) {
     let arr,ns;
     if(editClient){arr=clients.map(c=>c.id===editClient.id?{...form,id:editClient.id,_docCount:c._docCount||0}:c);ns=selClient?.id===editClient.id?{...form,id:editClient.id,_docCount:selClient._docCount||0}:selClient;}
@@ -929,8 +1001,18 @@ export default function App() {
         {role:'assistant', content: text},
       ]);
       setGenDoc(text);
-      const doc={id:Date.now().toString(),tipo:selDt.id,label:selDt.label,contenuto:text,createdAt:new Date().toISOString()};
-      await saveDocs([...clientDocs.filter(d=>d.tipo!==selDt.id),doc]);
+      const tipoDoc = selDt.id==='informativa'&&inputs.tipoInformativa
+        ? `informativa_${inputs.tipoInformativa.toLowerCase().replace(/[^a-z0-9]/g,'_')}`
+        : selDt.id==='nomina29'&&inputs.funzioneAziendale
+        ? `nomina29_${inputs.funzioneAziendale.toLowerCase().replace(/[^a-z0-9]/g,'_')}`
+        : selDt.id;
+      const labelDoc = selDt.id==='informativa'&&inputs.tipoInformativa
+        ? `Informativa Privacy — ${inputs.tipoInformativa}`
+        : selDt.id==='nomina29'&&inputs.funzioneAziendale
+        ? `Nomina Art. 29 — ${inputs.funzioneAziendale}`
+        : selDt.label;
+      const doc={id:Date.now().toString(),tipo:tipoDoc,label:labelDoc,contenuto:text,createdAt:new Date().toISOString()};
+      await saveDocs([...clientDocs.filter(d=>d.tipo!==tipoDoc),doc]);
       setAutoSaved(true);
     } catch(e){ setError(e.message); }
     setGenerating(false);
@@ -951,8 +1033,18 @@ export default function App() {
       setChatHistory(updatedHistory);
       setGenDoc(text);
       setFollowUpPrompt('');
-      const doc={id:Date.now().toString(),tipo:selDt.id,label:selDt.label,contenuto:text,createdAt:new Date().toISOString()};
-      await saveDocs([...clientDocs.filter(d=>d.tipo!==selDt.id),doc]);
+      const tipoDoc2 = selDt.id==='informativa'&&inputs.tipoInformativa
+        ? `informativa_${inputs.tipoInformativa.toLowerCase().replace(/[^a-z0-9]/g,'_')}`
+        : selDt.id==='nomina29'&&inputs.funzioneAziendale
+        ? `nomina29_${inputs.funzioneAziendale.toLowerCase().replace(/[^a-z0-9]/g,'_')}`
+        : selDt.id;
+      const labelDoc2 = selDt.id==='informativa'&&inputs.tipoInformativa
+        ? `Informativa Privacy — ${inputs.tipoInformativa}`
+        : selDt.id==='nomina29'&&inputs.funzioneAziendale
+        ? `Nomina Art. 29 — ${inputs.funzioneAziendale}`
+        : selDt.label;
+      const doc2={id:Date.now().toString(),tipo:tipoDoc2,label:labelDoc2,contenuto:text,createdAt:new Date().toISOString()};
+      await saveDocs([...clientDocs.filter(d=>d.tipo!==tipoDoc2),doc2]);
       setAutoSaved(true);
     } catch(e){ setError(e.message); }
     setFollowingUp(false);
@@ -1054,6 +1146,8 @@ export default function App() {
             onSaveLIA={saveLIA}
             onSaveBreach={saveBreach}
             onDeleteBreach={deleteBreach}
+            funzioni={selClient?.funzioni||[]}
+            onSaveFunzioni={saveFunzioni}
           />
         )}
         {page==='generate'&&selDt&&selClient&&(
@@ -1083,6 +1177,8 @@ export default function App() {
             setFollowUpPrompt={setFollowUpPrompt}
             onFollowUp={handleFollowUp}
             followingUp={followingUp}
+            funzioni={selClient?.funzioni||[]}
+            clientTrattamenti={clientTrattamenti}
           />
         )}
         {page==='view'&&viewDoc&&(
