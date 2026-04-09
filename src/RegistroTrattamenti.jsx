@@ -393,7 +393,7 @@ function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveF
 }
 
 // ---- TRATTAMENTO CARD ----
-function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpen }) {
+function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpen, onAnalisi }) {
   const [confirmDel, setConfirmDel] = useState(false);
   const assetNames = (t.assetIds||[]).map(id=>assets.find(a=>a.id===id)?.nome).filter(Boolean);
   const suppNames  = (t.supplierIds||[]).map(id=>suppliers.find(s=>s.id===id)?.nome).filter(Boolean);
@@ -416,11 +416,132 @@ function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpe
           </div>
         </div>
         <div style={C.row}>
+          <button style={{...C.btn('#fef3c7','#d97706',true),fontSize:11}} onClick={()=>onAnalisi(t.id)} title="Analisi dei rischi">⚠️ Rischi</button>
           <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>onEdit(t)}>✏️</button>
           {confirmDel
             ? <><button style={C.btn('#dc2626','#fff',true)} onClick={()=>onDelete(t.id)}>Conferma</button><button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>setConfirmDel(false)}>✕</button></>
             : <button style={C.btn('#fff5f5','#dc2626',true)} onClick={()=>setConfirmDel(true)}>🗑️</button>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- AI GENERA TRATTAMENTI MODAL ----
+function AIGeneraTrattamentiModal({ client, funzioni, apiKey, onSave, onClose }) {
+  const [settore, setSettore] = useState(client?.settore||'');
+  const [extraCtx, setExtraCtx] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [preview, setPreview] = useState(null); // array di trattamenti proposti
+  const [error, setError] = useState('');
+  const [selected, setSelected] = useState([]);
+
+  const genera = async () => {
+    if(!apiKey) { setError('API Key Groq mancante. Configurala in alto a destra.'); return; }
+    setGenerating(true); setError(''); setPreview(null);
+    const BASI = ['Consenso (art.6.1.a)','Contratto (art.6.1.b)','Obbligo legale (art.6.1.c)','Interesse vitale (art.6.1.d)','Interesse pubblico (art.6.1.e)','Interesse legittimo (art.6.1.f)'];
+    const system = `Sei un esperto GDPR. Genera trattamenti di dati personali tipici per l'azienda descritta. Rispondi SOLO con un array JSON valido, nessun testo aggiuntivo. Ogni elemento deve avere esattamente questi campi:
+{ "nome": string, "funzioneAziendale": string, "finalita": string, "baseGiuridica": one of ${JSON.stringify(BASI)}, "categorieDati": string, "categorieInteressati": string, "destinatariInterni": string, "destinatariEsterni": string, "paesiTerzi": string, "retention": string, "stato": "Attivo", "note": string }`;
+    const user = `Azienda: ${client.ragioneSociale}\nSettore: ${settore||client.settore}\nTitolare: ${client.titolare}${extraCtx?'\nContesto aggiuntivo: '+extraCtx:''}\n${funzioni.length?'Funzioni aziendali esistenti: '+funzioni.join(', '):''}\n\nGenera almeno 8-12 trattamenti tipici per questo settore. Per funzioneAziendale usa le funzioni esistenti dove appropriato o creane di nuove coerenti con il settore.`;
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body: JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:4000, temperature:0.2,
+          messages:[{role:'system',content:system},{role:'user',content:user}] })
+      });
+      const data = await r.json();
+      if(!r.ok||data.error) throw new Error(data.error?.message||'Errore API');
+      const txt = data.choices?.[0]?.message?.content?.trim();
+      const match = txt.match(/\[[\s\S]*\]/);
+      if(!match) throw new Error('Risposta non valida — formato JSON non trovato');
+      const arr = JSON.parse(match[0]);
+      if(!Array.isArray(arr)||arr.length===0) throw new Error('Array vuoto o non valido');
+      setPreview(arr);
+      setSelected(arr.map((_,i)=>i));
+    } catch(e) { setError(e.message); }
+    setGenerating(false);
+  };
+
+  const toggleSel = i => setSelected(s=>s.includes(i)?s.filter(x=>x!==i):[...s,i]);
+
+  const importa = () => {
+    const toImport = preview.filter((_,i)=>selected.includes(i)).map(t=>({
+      ...t,
+      id: Date.now().toString()+Math.random().toString(36).slice(2),
+      assetIds:[], supplierIds:[], misurePerAsset:{},
+      createdAt: new Date().toISOString(),
+    }));
+    onSave(toImport);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'#fff',borderRadius:12,padding:28,width:'100%',maxWidth:780,maxHeight:'90vh',overflow:'auto',boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,paddingBottom:14,borderBottom:'1px solid #f1f5f9'}}>
+          <span style={{fontSize:26}}>🤖</span>
+          <div style={{flex:1}}>
+            <h2 style={{margin:0,fontSize:17,color:'#0f172a'}}>Genera Trattamenti con AI</h2>
+            <div style={{fontSize:12,color:'#64748b',marginTop:2}}>L'AI analizza il settore e crea i trattamenti direttamente nel Registro</div>
+          </div>
+          <button style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#94a3b8'}} onClick={onClose}>✕</button>
+        </div>
+
+        {!preview ? (
+          <>
+            <div style={{marginBottom:14}}>
+              <label style={{display:'block',fontSize:11,fontWeight:700,color:'#475569',marginBottom:4,textTransform:'uppercase',letterSpacing:'.4px'}}>Settore aziendale</label>
+              <input value={settore} onChange={e=>setSettore(e.target.value)} placeholder="es. Studio legale, Commercio al dettaglio, Sanità..."
+                style={{width:'100%',padding:'8px 11px',border:'1.5px solid #dde3ec',borderRadius:8,fontSize:14,boxSizing:'border-box',outline:'none',fontFamily:'inherit'}}/>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{display:'block',fontSize:11,fontWeight:700,color:'#475569',marginBottom:4,textTransform:'uppercase',letterSpacing:'.4px'}}>Contesto aggiuntivo (opzionale)</label>
+              <textarea value={extraCtx} onChange={e=>setExtraCtx(e.target.value)} rows={3}
+                placeholder="es. azienda di 20 dipendenti, gestisce dati sanitari, ha un e-commerce..."
+                style={{width:'100%',padding:'8px 11px',border:'1.5px solid #dde3ec',borderRadius:8,fontSize:13,boxSizing:'border-box',outline:'none',fontFamily:'inherit',resize:'vertical'}}/>
+            </div>
+            {error&&<div style={{marginBottom:12,padding:12,background:'#fef2f2',color:'#dc2626',borderRadius:8,fontSize:13}}>{error}</div>}
+            <button style={{background:ACCENT,color:'#fff',border:'none',borderRadius:8,padding:'11px 24px',cursor:'pointer',fontWeight:700,fontSize:15,fontFamily:'inherit',width:'100%',opacity:generating?.7:1}} onClick={genera} disabled={generating}>
+              {generating?'⏳ Generazione in corso...':'✨ Genera Trattamenti'}
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <div style={{fontSize:14,fontWeight:700,color:'#0f172a'}}>{preview.length} trattamenti generati — seleziona quelli da importare</div>
+              <div style={{display:'flex',gap:8}}>
+                <button style={{fontSize:12,background:'#f1f5f9',border:'none',borderRadius:6,padding:'4px 10px',cursor:'pointer'}} onClick={()=>setSelected(preview.map((_,i)=>i))}>Tutti</button>
+                <button style={{fontSize:12,background:'#f1f5f9',border:'none',borderRadius:6,padding:'4px 10px',cursor:'pointer'}} onClick={()=>setSelected([])}>Nessuno</button>
+              </div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20,maxHeight:400,overflowY:'auto'}}>
+              {preview.map((t,i)=>{
+                const sel=selected.includes(i);
+                return (
+                  <div key={i} onClick={()=>toggleSel(i)} style={{padding:'12px 14px',borderRadius:8,border:`2px solid ${sel?ACCENT:'#e2e8f0'}`,background:sel?'#eff6ff':'#fafafa',cursor:'pointer',transition:'all .15s'}}>
+                    <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                      <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${sel?ACCENT:'#cbd5e1'}`,background:sel?ACCENT:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                        {sel&&<span style={{color:'#fff',fontSize:12,fontWeight:700}}>✓</span>}
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:700,fontSize:13,color:'#0f172a',marginBottom:2}}>{t.nome}</div>
+                        {t.funzioneAziendale&&<span style={{fontSize:10,background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'1px 7px',borderRadius:20,display:'inline-block',marginBottom:4}}>🏢 {t.funzioneAziendale}</span>}
+                        <div style={{fontSize:12,color:'#64748b',marginBottom:3}}>{t.finalita}</div>
+                        <div style={{fontSize:11,color:'#94a3b8'}}>⚖️ {t.baseGiuridica} · 👥 {t.categorieInteressati}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button style={{background:ACCENT,color:'#fff',border:'none',borderRadius:8,padding:'10px 24px',cursor:'pointer',fontWeight:700,fontSize:14,fontFamily:'inherit',flex:1,opacity:selected.length===0?.5:1}} onClick={importa} disabled={selected.length===0}>
+                ✅ Importa {selected.length} trattament{selected.length===1?'o':'i'}
+              </button>
+              <button style={{background:'#f1f5f9',color:'#374151',border:'none',borderRadius:8,padding:'10px 16px',cursor:'pointer',fontWeight:600,fontSize:14,fontFamily:'inherit'}} onClick={()=>setPreview(null)}>← Rigenera</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -517,11 +638,12 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
 }
 
 // ---- ROOT ----
-export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onDeleteTrattamento, onSaveMisure }) {
+export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onGoToAnalisi, apiKey }) {
   const [view, setView] = useState('list');
   const [editing, setEditing] = useState(null);
   const [detail, setDetail] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [showAI, setShowAI] = useState(false);
 
   const handleSave = t => {
     const record = editing
@@ -529,6 +651,15 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
       : {...t, id:Date.now().toString(), createdAt:new Date().toISOString()};
     onSaveTrattamento(record);
     setView('list'); setEditing(null);
+  };
+
+  const handleAISave = async (arr) => {
+    // Salva tutti i trattamenti generati dall'AI, raccogliendo anche eventuali nuove funzioni
+    const nuoveFunzioni = arr.map(t=>t.funzioneAziendale).filter(f=>f&&!funzioni.includes(f));
+    const uniche = [...new Set(nuoveFunzioni)];
+    if(uniche.length>0) onSaveFunzioni([...funzioni,...uniche]);
+    for(const t of arr) await onSaveTrattamento(t);
+    setShowAI(false);
   };
 
   const handleExportDocx = async () => {
@@ -559,6 +690,13 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
         />
       )}
 
+      {showAI&&(
+        <AIGeneraTrattamentiModal
+          client={client} funzioni={funzioni||[]} apiKey={apiKey}
+          onSave={handleAISave} onClose={()=>setShowAI(false)}
+        />
+      )}
+
       <div style={{...C.row,justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:10}}>
         <div>
           <h3 style={{margin:'0 0 2px',color:'#0f172a',fontSize:16}}>✍️ Registro dei Trattamenti</h3>
@@ -569,6 +707,7 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
             <button style={C.btn('#16a34a','#fff',true)} onClick={()=>exportExcel(trattamenti,assets,suppliers,misure,client?.ragioneSociale)}>📊 Excel</button>
             <button style={C.btn('#1e40af','#fff',true)} onClick={handleExportDocx} disabled={exporting}>{exporting?'⏳':'📄'} DOCX</button>
           </>}
+          <button style={C.btn('#7c3aed','#fff',true)} onClick={()=>setShowAI(true)}>🤖 Genera con AI</button>
           <button style={C.btn()} onClick={()=>{setEditing(null);setView('form');}}>+ Nuovo Trattamento</button>
         </div>
       </div>
@@ -583,6 +722,7 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
                 onEdit={t=>{setEditing(t);setView('form');}}
                 onDelete={id=>onDeleteTrattamento(id)}
                 onOpen={setDetail}
+                onAnalisi={id=>onGoToAnalisi&&onGoToAnalisi(id)}
               />
             ))}
           </div>}

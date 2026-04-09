@@ -400,8 +400,9 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
 }
 
 // ---- CLIENT DETAIL ----
-function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni}) {
+function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni, apiKey}) {
   const [tab,setTab]=useState('docs');
+  const [analisiSelId,setAnalisiSelId]=useState(null);
   const getDoc=id=>{
     if(id==='informativa') return docs.find(d=>d.tipo.startsWith('informativa'));
     if(id==='nomina29') return docs.find(d=>d.tipo.startsWith('nomina29'));
@@ -468,8 +469,9 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
-      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}/>}
-      {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi}/>}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure} apiKey={apiKey}
+        onGoToAnalisi={id=>{setAnalisiSelId(id);setTab('rischi');}}/>}
+      {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi} initialSelId={analisiSelId}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
       {tab==='breach'&&<DataBreaches breaches={breaches} onSave={onSaveBreach} onDelete={onDeleteBreach}/>}
@@ -1148,6 +1150,7 @@ export default function App() {
             onDeleteBreach={deleteBreach}
             funzioni={selClient?.funzioni||[]}
             onSaveFunzioni={saveFunzioni}
+            apiKey={apiKey}
           />
         )}
         {page==='generate'&&selDt&&selClient&&(

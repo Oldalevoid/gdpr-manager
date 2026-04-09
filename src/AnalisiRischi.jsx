@@ -158,8 +158,8 @@ export function TrattamentoSelector({ trattamenti, selectedId, onSelect }) {
   );
 }
 
-export default function AnalisiRischi({ trattamenti, analisi, onSave }) {
-  const [selId, setSelId] = useState(trattamenti[0]?.id||null);
+export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSelId }) {
+  const [selId, setSelId] = useState(initialSelId||trattamenti[0]?.id||null);
   const [showForm, setShowForm] = useState(false);
   const [editScenario, setEditScenario] = useState(null);
 
