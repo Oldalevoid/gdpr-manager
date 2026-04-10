@@ -6,38 +6,31 @@ const SYSTEM = [
   'Sii conciso (2-4 frasi) e direttamente utilizzabile senza modifiche.',
 ].join(' ');
 
-function getAIConfig() {
-  const provider = localStorage.getItem('gdpr:aiProvider') || 'groq';
-  const groqKey = localStorage.getItem('gdpr:groqKey') || import.meta.env.VITE_GROQ_API_KEY || '';
-  const claudeKey = localStorage.getItem('gdpr:claudeKey') || '';
-  return { provider, groqKey, claudeKey };
+function getProvider() {
+  return localStorage.getItem('gdpr:aiProvider') || 'groq';
 }
 
-export const isAIEnabled = !!(
-  import.meta.env.VITE_GROQ_API_KEY ||
-  localStorage.getItem('gdpr:groqKey') ||
-  localStorage.getItem('gdpr:claudeKey')
-);
+export const isAIEnabled = true;
 
 export async function generateFieldContent(fieldLabel, placeholder, context, onChunk) {
-  const { provider, groqKey, claudeKey } = getAIConfig();
+  const provider = getProvider();
   const parts = [
     context && `Contesto: ${context}`,
     placeholder && `Descrizione del campo: ${placeholder}`,
   ].filter(Boolean).join('\n');
   const userContent = `Campo: "${fieldLabel}"\n${parts}\n\nGenera il testo per questo campo.`;
 
-  if (provider === 'claude' && claudeKey) {
-    await generateFieldClaude(claudeKey, userContent, onChunk);
+  if (provider === 'claude') {
+    await generateFieldClaude(userContent, onChunk);
   } else {
-    await generateFieldGroq(groqKey, userContent, onChunk);
+    await generateFieldGroq(userContent, onChunk);
   }
 }
 
-async function generateFieldGroq(apiKey, userContent, onChunk) {
+async function generateFieldGroq(userContent, onChunk) {
   const res = await fetch('/api/groq/openai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'llama-3.1-8b-instant',
       max_tokens: 400,
@@ -52,14 +45,10 @@ async function generateFieldGroq(apiKey, userContent, onChunk) {
   await readSSEGroq(res.body, onChunk);
 }
 
-async function generateFieldClaude(apiKey, userContent, onChunk) {
+async function generateFieldClaude(userContent, onChunk) {
   const res = await fetch('/api/claude/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,

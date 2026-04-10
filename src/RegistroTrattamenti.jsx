@@ -543,7 +543,7 @@ function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpe
 }
 
 // ---- AI GENERA TRATTAMENTI MODAL ----
-function AIGeneraTrattamentiModal({ client, funzioni, apiKey, onSave, onClose }) {
+function AIGeneraTrattamentiModal({ client, funzioni, onSave, onClose }) {
   const [settore, setSettore] = useState(client?.settore||'');
   const [extraCtx, setExtraCtx] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -552,16 +552,15 @@ function AIGeneraTrattamentiModal({ client, funzioni, apiKey, onSave, onClose })
   const [selected, setSelected] = useState([]);
 
   const genera = async () => {
-    if(!apiKey) { setError('API Key Groq mancante. Configurala in alto a destra.'); return; }
     setGenerating(true); setError(''); setPreview(null);
     const BASI = ['Consenso (art.6.1.a)','Contratto (art.6.1.b)','Obbligo legale (art.6.1.c)','Interesse vitale (art.6.1.d)','Interesse pubblico (art.6.1.e)','Interesse legittimo (art.6.1.f)'];
     const system = `Sei un esperto GDPR. Genera trattamenti di dati personali tipici per l'azienda descritta. Rispondi SOLO con un array JSON valido, nessun testo aggiuntivo. Ogni elemento deve avere esattamente questi campi:
 { "nome": string, "funzioneAziendale": string, "finalita": string, "baseGiuridica": one of ${JSON.stringify(BASI)}, "categorieDati": string, "categorieInteressati": string, "destinatariInterni": string, "destinatariEsterni": string, "paesiTerzi": string, "retention": string, "stato": "Attivo", "note": string }`;
     const user = `Azienda: ${client.ragioneSociale}\nSettore: ${settore||client.settore}\nTitolare: ${client.titolare}${extraCtx?'\nContesto aggiuntivo: '+extraCtx:''}\n${funzioni.length?'Funzioni aziendali esistenti: '+funzioni.join(', '):''}\n\nGenera almeno 8-12 trattamenti tipici per questo settore. Per funzioneAziendale usa le funzioni esistenti dove appropriato o creane di nuove coerenti con il settore.`;
     try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const r = await fetch('/api/groq/openai/v1/chat/completions', {
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:4000, temperature:0.2,
           messages:[{role:'system',content:system},{role:'user',content:user}] })
       });
@@ -789,7 +788,7 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
 }
 
 // ---- ROOT ----
-export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onSaveManyTrattamenti, onDeleteTrattamento, onSaveMisure, onGoToAnalisi, apiKey }) {
+export default function RegistroTrattamenti({ trattamenti, misure, assets, suppliers, client, funzioni, onSaveFunzioni, onSaveTrattamento, onSaveManyTrattamenti, onDeleteTrattamento, onSaveMisure, onGoToAnalisi }) {
   const [view, setView] = useState('list');
   const [editing, setEditing] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -842,7 +841,7 @@ export default function RegistroTrattamenti({ trattamenti, misure, assets, suppl
 
       {showAI&&(
         <AIGeneraTrattamentiModal
-          client={client} funzioni={funzioni||[]} apiKey={apiKey}
+          client={client} funzioni={funzioni||[]}
           onSave={handleAISave} onClose={()=>setShowAI(false)}
         />
       )}

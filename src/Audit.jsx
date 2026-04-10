@@ -135,7 +135,7 @@ function formatInline(text) {
   return parts.length > 0 ? parts : text;
 }
 
-export default function Audit({ client, apiKey, aiProvider, claudeKey }) {
+export default function Audit({ client }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,16 +148,14 @@ export default function Audit({ client, apiKey, aiProvider, claudeKey }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const provider = aiProvider || localStorage.getItem('gdpr:aiProvider') || 'groq';
-  const effectiveGroqKey = apiKey || localStorage.getItem('gdpr:groqKey') || import.meta.env.VITE_GROQ_API_KEY;
-  const effectiveClaudeKey = claudeKey || localStorage.getItem('gdpr:claudeKey') || '';
+  const provider = localStorage.getItem('gdpr:aiProvider') || 'groq';
 
   const callFacilitator = async (msgs) => {
     const systemContent = AUDIT_SYSTEM + (client ? `\n\nCONTESTO AZIENDA: ${client.ragioneSociale}${client.settore ? `, settore: ${client.settore}` : ''}` : '');
-    if (provider === 'claude' && effectiveClaudeKey) {
+    if (provider === 'claude') {
       const r = await fetch('/api/claude/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': effectiveClaudeKey, 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-opus-4-6',
           max_tokens: 2000,
@@ -171,7 +169,7 @@ export default function Audit({ client, apiKey, aiProvider, claudeKey }) {
     } else {
       const r = await fetch('/api/groq/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${effectiveGroqKey}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           max_tokens: 2000,
@@ -186,8 +184,6 @@ export default function Audit({ client, apiKey, aiProvider, claudeKey }) {
   };
 
   const startSession = async () => {
-    if (!(provider === 'claude' ? effectiveClaudeKey : effectiveGroqKey)) { alert('API Key non configurata.'); return; }
-    setStarted(true);
     setLoading(true);
     try {
       const greeting = await callFacilitator([{ role: 'user', content: 'Inizia l\'intervista.' }]);

@@ -717,7 +717,7 @@ function ClientRepo({docs, onView, onDelete, onExport}) {
 }
 
 // ---- CLIENT DETAIL ----
-function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni, apiKey, onSaveManyTrattamenti, aiProvider, claudeKey}) {
+function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate, onView, onDeleteDoc, onExport, onChangeAssets, onChangeSuppliers, onOpenSettings, trattamenti, misure, analisi, dpia, lia, breaches, onSaveTrattamento, onDeleteTrattamento, onSaveMisure, onSaveAnalisi, onSaveDPIA, onSaveLIA, onSaveBreach, onDeleteBreach, funzioni, onSaveFunzioni, onSaveManyTrattamenti}) {
   const [tab,setTab]=useState('docs');
   const [analisiSelId,setAnalisiSelId]=useState(null);
   const getDoc=id=>{
@@ -787,12 +787,12 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         </div>
       )}
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
-      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onSaveManyTrattamenti={onSaveManyTrattamenti} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure} apiKey={apiKey}
+      {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onSaveManyTrattamenti={onSaveManyTrattamenti} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure}
         onGoToAnalisi={id=>{setAnalisiSelId(id);setTab('rischi');}}/>}
       {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi} initialSelId={analisiSelId} misure={misure}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
-      {tab==='audit'&&<Audit client={client} apiKey={apiKey} aiProvider={aiProvider} claudeKey={claudeKey}/>}
+      {tab==='audit'&&<Audit client={client}/>}
       {tab==='breach'&&<DataBreaches breaches={breaches} onSave={onSaveBreach} onDelete={onDeleteBreach}/>}
       {tab==='assets'&&<AssetManager assets={assets} onChange={onChangeAssets}/>}
       {tab==='suppliers'&&<SupplierManager suppliers={suppliers} onChange={onChangeSuppliers}/>}
@@ -874,7 +874,7 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,onDocEdit,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti,apiKey}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,onDocEdit,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
@@ -893,7 +893,7 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,o
       // Ask AI to extract structure/layout with placeholders
       const res = await fetch('/api/groq/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey || import.meta.env.VITE_GROQ_API_KEY}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           max_tokens: 4000,
@@ -1437,64 +1437,39 @@ function ViewDoc({doc,onCopy,copied,onBack,onExport}) {
 }
 
 // ---- AI SETTINGS MODAL ----
-function AISettingsModal({provider, groqKey, claudeKey, onSave, onClose}) {
+function AIProviderModal({provider, onSave, onClose}) {
   const [prov, setProv] = useState(provider || 'groq');
-  const [gKey, setGKey] = useState(groqKey || '');
-  const [cKey, setCKey] = useState(claudeKey || '');
 
   const PROVIDERS = [
-    { id:'groq',   label:'Groq',            icon:'⚡', color:'#ff6b35', hint:'console.groq.com — gratuito', ph:'gsk_...' },
-    { id:'claude', label:'Claude (Anthropic)', icon:'🟠', color:'#d97706', hint:'console.anthropic.com', ph:'sk-ant-...' },
+    { id:'groq',   label:'Groq',             icon:'⚡', color:'#ff6b35', hint:'Veloce · llama-3.3-70b-versatile' },
+    { id:'claude', label:'Claude (Anthropic)', icon:'🟠', color:'#d97706', hint:'Alta qualità · claude-sonnet-4-6' },
   ];
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-      <div style={{...C.card,maxWidth:540,width:'100%',padding:28}}>
+      <div style={{...C.card,maxWidth:440,width:'100%',padding:28}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
           <span style={{fontSize:22}}>🤖</span>
           <div>
-            <div style={{fontWeight:700,fontSize:16,color:'#0f172a'}}>Impostazioni AI</div>
-            <div style={{fontSize:12,color:'#64748b',marginTop:1}}>Seleziona il provider e inserisci la chiave API</div>
+            <div style={{fontWeight:700,fontSize:16,color:'#0f172a'}}>Provider AI</div>
+            <div style={{fontSize:12,color:'#64748b',marginTop:1}}>Le chiavi API sono configurate lato server</div>
           </div>
           <button onClick={onClose} style={{marginLeft:'auto',background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#94a3b8'}}>✕</button>
         </div>
 
-        {/* Provider selector */}
-        <div style={{display:'flex',gap:8,marginBottom:20}}>
+        <div style={{display:'flex',gap:8,marginBottom:24}}>
           {PROVIDERS.map(p => (
             <button key={p.id} onClick={()=>setProv(p.id)}
-              style={{flex:1,padding:'12px 10px',borderRadius:10,border:`2px solid ${prov===p.id?p.color:'#e5eaf0'}`,background:prov===p.id?p.color+'10':'#fafafa',cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}>
-              <div style={{fontSize:20,marginBottom:4}}>{p.icon}</div>
+              style={{flex:1,padding:'16px 10px',borderRadius:10,border:`2px solid ${prov===p.id?p.color:'#e5eaf0'}`,background:prov===p.id?p.color+'10':'#fafafa',cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}>
+              <div style={{fontSize:24,marginBottom:6}}>{p.icon}</div>
               <div style={{fontWeight:700,fontSize:13,color:prov===p.id?p.color:'#374151'}}>{p.label}</div>
-              <div style={{fontSize:10,color:'#94a3b8',marginTop:2}}>{p.hint}</div>
+              <div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>{p.hint}</div>
             </button>
           ))}
         </div>
 
-        {/* Groq key */}
-        <div style={{marginBottom:16}}>
-          <label style={{...C.lbl,color: prov==='groq'?'#374151':'#94a3b8'}}>⚡ Groq API Key</label>
-          <input type='password' value={gKey} onChange={e=>setGKey(e.target.value)}
-            placeholder='gsk_...'
-            style={{...C.inp,fontFamily:'"Courier New",monospace',opacity:prov==='groq'?1:0.5}}
-            onFocus={e=>e.target.style.borderColor='#ff6b35'}
-            onBlur={e=>e.target.style.borderColor='#dde3ec'}/>
-          <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Modello: llama-3.3-70b-versatile · Generazione rapida e gratuita</div>
-        </div>
-
-        {/* Claude key */}
-        <div style={{marginBottom:20}}>
-          <label style={{...C.lbl,color: prov==='claude'?'#374151':'#94a3b8'}}>🟠 Anthropic API Key</label>
-          <input type='password' value={cKey} onChange={e=>setCKey(e.target.value)}
-            placeholder='sk-ant-...'
-            style={{...C.inp,fontFamily:'"Courier New",monospace',opacity:prov==='claude'?1:0.5}}
-            onFocus={e=>e.target.style.borderColor='#d97706'}
-            onBlur={e=>e.target.style.borderColor='#dde3ec'}/>
-          <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Modello: claude-sonnet-4-6 · Qualità superiore per documenti complessi</div>
-        </div>
-
         <div style={C.row}>
-          <button style={C.btn(ACCENT,'#fff')} onClick={()=>onSave({provider:prov, groqKey:gKey.trim(), claudeKey:cKey.trim()})}>💾 Salva</button>
+          <button style={C.btn(ACCENT,'#fff')} onClick={()=>onSave(prov)}>💾 Salva</button>
           <button style={C.btn('#f1f5f9','#374151')} onClick={onClose}>Annulla</button>
         </div>
       </div>
@@ -1542,8 +1517,6 @@ export default function App() {
   const [copied,setCopied]=useState(false);
   const [error,setError]=useState(null);
   const [aiProvider,setAiProvider]=useState(()=>localStorage.getItem('gdpr:aiProvider')||'groq');
-  const [apiKey,setApiKey]=useState(()=>localStorage.getItem('gdpr:groqKey')||import.meta.env.VITE_GROQ_API_KEY||'');
-  const [claudeKey,setClaudeKey]=useState(()=>localStorage.getItem('gdpr:claudeKey')||'');
   const [showApiKey,setShowApiKey]=useState(false);
 
   useEffect(()=>{
@@ -1720,13 +1693,9 @@ export default function App() {
     setSettingsDt(null);
   }
 
-  function handleSaveAISettings({ provider, groqKey, claudeKey: ck }) {
+  function handleSaveProvider(provider) {
     setAiProvider(provider);
-    setApiKey(groqKey);
-    setClaudeKey(ck);
     localStorage.setItem('gdpr:aiProvider', provider);
-    if (groqKey) localStorage.setItem('gdpr:groqKey', groqKey); else localStorage.removeItem('gdpr:groqKey');
-    if (ck) localStorage.setItem('gdpr:claudeKey', ck); else localStorage.removeItem('gdpr:claudeKey');
     setShowApiKey(false);
   }
 
@@ -1737,12 +1706,11 @@ export default function App() {
     const systemMsg = messages[0]?.role === 'system' ? messages[0].content : '';
     const chatMsgs  = messages[0]?.role === 'system' ? messages.slice(1) : messages;
 
-    if (aiProvider === 'claude' && claudeKey) {
-      const CLAUDE_MODEL = 'claude-sonnet-4-6';
+    if (aiProvider === 'claude') {
       const r = await fetch('/api/claude/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: maxTokens, temperature, system: systemMsg, messages: chatMsgs }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, temperature, system: systemMsg, messages: chatMsgs }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(`Errore API Claude (${r.status}): ${data.error?.message || JSON.stringify(data.error || data)}`);
@@ -1750,11 +1718,10 @@ export default function App() {
       if (!text) throw new Error('Risposta vuota. Riprova.');
       return text;
     } else {
-      const GROQ_MODEL = 'llama-3.3-70b-versatile';
       const r = await fetch('/api/groq/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: GROQ_MODEL, max_tokens: maxTokens, temperature, messages }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: maxTokens, temperature, messages }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(`Errore API Groq (${r.status}): ${data.error?.message || JSON.stringify(data.error || data)}`);
@@ -1767,7 +1734,6 @@ export default function App() {
 
 
   async function handleGenerate() {
-    if(!apiKey) { setError('API Key Groq mancante. Configurala tramite il pulsante "⚙️ API Key" in alto a destra.'); return; }
     setGenerating(true); setError(null); setAutoSaved(false);
     const s = docSettings[selDt.id]||{};
     const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
@@ -1804,7 +1770,7 @@ export default function App() {
   }
 
   async function handleFollowUp() {
-    if(!followUpPrompt.trim()||!apiKey) return;
+    if(!followUpPrompt.trim()) return;
     setFollowingUp(true); setError(null);
     const s = docSettings[selDt.id]||{};
     const systemPrompt = s.systemPrompt || DEFAULT_SYSTEM(selDt.label);
@@ -1890,10 +1856,7 @@ export default function App() {
         )}
         <div style={{flex:1}}/>
         <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0'}}>
-          {(aiProvider==='claude'?claudeKey:apiKey)
-            ? <span style={{color:'rgba(255,255,255,.55)',fontSize:11,fontWeight:500}}>{aiProvider==='claude'?'🟠 Claude':'⚡ Groq'} attivo</span>
-            : <span style={{color:'#fbbf24',fontSize:11,fontWeight:700}}>⚠️ API Key mancante</span>
-          }
+          <span style={{color:'rgba(255,255,255,.55)',fontSize:11,fontWeight:500}}>{aiProvider==='claude'?'🟠 Claude':'⚡ Groq'}</span>
           <button
             style={{...C.btn('rgba(255,255,255,.15)','#fff',true),fontSize:12}}
             onClick={()=>setShowApiKey(true)}
@@ -1986,10 +1949,7 @@ export default function App() {
             onDeleteBreach={deleteBreach}
             funzioni={selClient?.funzioni||[]}
             onSaveFunzioni={saveFunzioni}
-            apiKey={apiKey}
             onSaveManyTrattamenti={saveManyTrattamenti}
-            aiProvider={aiProvider}
-            claudeKey={claudeKey}
           />
         )}
         {page==='generate'&&selDt&&selClient&&(
@@ -2019,7 +1979,6 @@ export default function App() {
             followingUp={followingUp}
             funzioni={selClient?.funzioni||[]}
             clientTrattamenti={clientTrattamenti}
-            apiKey={apiKey}
           />
         )}
         {page==='view'&&viewDoc&&(
@@ -2044,11 +2003,9 @@ export default function App() {
         />
       )}
       {showApiKey&&(
-        <AISettingsModal
+        <AIProviderModal
           provider={aiProvider}
-          groqKey={apiKey}
-          claudeKey={claudeKey}
-          onSave={handleSaveAISettings}
+          onSave={handleSaveProvider}
           onClose={()=>setShowApiKey(false)}
         />
       )}

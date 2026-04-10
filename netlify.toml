@@ -1,14 +1,6 @@
-[[redirects]]
-  from = "/api/groq/*"
-  to = "https://api.groq.com/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/claude/*"
-  to = "https://api.anthropic.com/:splat"
-  status = 200
-  force = true
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/*"
