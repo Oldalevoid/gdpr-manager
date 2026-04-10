@@ -184,6 +184,7 @@ export default function Audit({ client }) {
   };
 
   const startSession = async () => {
+    setStarted(true);
     setLoading(true);
     try {
       const greeting = await callFacilitator([{ role: 'user', content: 'Inizia l\'intervista.' }]);
