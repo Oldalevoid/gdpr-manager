@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
-import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT, BASI_GIURIDICHE, BASI_GIURIDICHE_ART9, STATI_TRATTAMENTO, TIPI_MISURA, STATI_MISURA } from './shared';
+import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT, BASI_GIURIDICHE, BASI_GIURIDICHE_ART9, STATI_TRATTAMENTO, TIPI_MISURA, STATI_MISURA, ART32_RIFERIMENTI } from './shared';
 
 const STATO_COLOR = { Attivo:'#16a34a', Sospeso:'#d97706', Cessato:'#64748b' };
 const MISURA_COLOR = { Implementata:'#16a34a', 'In corso':'#d97706', Pianificata:'#2563eb' };
@@ -201,48 +201,111 @@ async function exportDocx(trattamenti, assets, suppliers, misure, client) {
 }
 
 // ---- MISURE LIBRARY ----
-function MisureLibrary({ misure, onChange }) {
-  const [form, setForm] = useState({ nome:'', tipo:'Tecnica', stato:'Implementata' });
-  const [editing, setEditing] = useState(null);
-  const u = (k,v) => setForm(p=>({...p,[k]:v}));
-  const save = () => {
-    if(!form.nome.trim()) return;
-    if(editing!==null) { onChange(misure.map((m,i)=>i===editing?{...m,...form}:m)); setEditing(null); }
-    else onChange([...misure,{...form,id:Date.now().toString()}]);
-    setForm({nome:'',tipo:'Tecnica',stato:'Implementata'});
-  };
+const EMPTY_MISURA = { nome:'', tipo:'Tecnica', stato:'Implementata', riferimentoArt32:'', descrizione:'', responsabile:'', dataVerifica:'' };
+
+function MisuraForm({ initial, onSave, onClose }) {
+  const [f, setF] = useState(initial || EMPTY_MISURA);
+  const u = (k,v) => setF(p=>({...p,[k]:v}));
   return (
-    <div style={{...C.card,marginBottom:20}}>
-      <SectionTitle>📚 Libreria Misure di Sicurezza</SectionTitle>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr auto',gap:'0 10px',alignItems:'end'}}>
-        <Fld id='nome' label='Nome misura *' val={form.nome} onChange={u} ph='es. Backup giornaliero, Crittografia...'/>
-        <Fld id='tipo' label='Tipo' val={form.tipo} onChange={u} options={TIPI_MISURA}/>
-        <Fld id='stato' label='Stato' val={form.stato} onChange={u} options={STATI_MISURA}/>
-        <div style={{marginBottom:14}}>
-          <div style={{...C.lbl,opacity:0}}>X</div>
-          <button style={C.btn(ACCENT,'#fff',true)} onClick={save}>{editing!==null?'✓ Aggiorna':'+ Aggiungi'}</button>
-        </div>
+    <Modal onClose={onClose} maxWidth={580}>
+      <h3 style={{margin:'0 0 18px',color:'#0f172a',fontSize:15}}>{initial?'✏️ Modifica misura':'➕ Nuova misura di sicurezza Art.32'}</h3>
+      <Fld id='nome' label='Nome misura *' val={f.nome} onChange={u} ph='es. Crittografia dati a riposo, Autenticazione a due fattori...'/>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 16px'}}>
+        <Fld id='tipo' label='Tipo' val={f.tipo} onChange={u} options={TIPI_MISURA}/>
+        <Fld id='stato' label='Stato' val={f.stato} onChange={u} options={STATI_MISURA}/>
+        <Fld id='riferimentoArt32' label='Riferimento Art.32' val={f.riferimentoArt32} onChange={u} options={ART32_RIFERIMENTI}/>
+        <Fld id='responsabile' label='Responsabile' val={f.responsabile} onChange={u} ph='es. IT Manager, DPO...'/>
+        <Fld id='dataVerifica' label='Data verifica / scadenza' type='date' val={f.dataVerifica} onChange={u}/>
       </div>
-      {editing!==null && <button style={{...C.btn('#f1f5f9','#374151',true),marginBottom:12}} onClick={()=>{setEditing(null);setForm({nome:'',tipo:'Tecnica',stato:'Implementata'});}}>✕ Annulla</button>}
-      {misure.length===0
-        ? <div style={{textAlign:'center',padding:'16px',color:'#94a3b8',fontSize:13}}>Nessuna misura ancora. Aggiungile qui per poi associarle ai trattamenti.</div>
-        : <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-            {misure.map((m,i)=>(
-              <div key={m.id||i} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px 4px 8px',borderRadius:20,background:'#f8fafc',border:'1px solid #e2e8f0'}}>
-                <StatusBadge label={m.tipo} color={TIPO_COLOR[m.tipo]||'#64748b'}/>
-                <span style={{fontSize:13,color:'#0f172a',fontWeight:500}}>{m.nome}</span>
-                <StatusBadge label={m.stato} color={MISURA_COLOR[m.stato]||'#64748b'}/>
-                <button style={{...C.btn('#f1f5f9','#374151',true),padding:'2px 6px',fontSize:11}} onClick={()=>{setForm({nome:m.nome,tipo:m.tipo,stato:m.stato});setEditing(i);}}>✏️</button>
-                <button style={{...C.btn('#fff5f5','#dc2626',true),padding:'2px 6px',fontSize:11}} onClick={()=>onChange(misure.filter((_,idx)=>idx!==i))}>🗑️</button>
-              </div>
-            ))}
-          </div>}
+      <Fld id='descrizione' label='Descrizione' type='textarea' val={f.descrizione} onChange={u} ph='es. Tutti i dati sensibili vengono cifrati con AES-256 sia a riposo che in transito...'/>
+      <div style={C.row}>
+        <button style={C.btn()} onClick={()=>{if(!f.nome.trim()){alert('Inserisci il nome');return;}onSave({...f,id:initial?.id||Date.now().toString()});}}>💾 Salva</button>
+        <button style={C.btn('#f1f5f9','#374151')} onClick={onClose}>Annulla</button>
+      </div>
+    </Modal>
+  );
+}
+
+function MisureLibrary({ misure, onChange }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editMisura, setEditMisura] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const handleSave = m => {
+    const updated = editMisura
+      ? misure.map(x => x.id === m.id ? m : x)
+      : [...misure, m];
+    onChange(updated);
+    setShowForm(false); setEditMisura(null);
+  };
+
+  const implCount = misure.filter(m => m.stato === 'Implementata').length;
+
+  return (
+    <div style={{...C.card, marginBottom: 20}}>
+      {(showForm || editMisura) && (
+        <MisuraForm
+          initial={editMisura}
+          onSave={handleSave}
+          onClose={() => { setShowForm(false); setEditMisura(null); }}
+        />
+      )}
+      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: collapsed ? 0 : 14}}>
+        <div style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer'}} onClick={()=>setCollapsed(c=>!c)}>
+          <span style={{fontWeight:700, fontSize:13, color:'#0f172a'}}>🔒 Libreria Misure di Sicurezza — Art.32 GDPR</span>
+          {misure.length > 0 && (
+            <span style={{fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:12, background:'#eff6ff', color:ACCENT}}>
+              {implCount}/{misure.length} implementate
+            </span>
+          )}
+          <span style={{color:'#94a3b8', fontSize:12}}>{collapsed ? '▼' : '▲'}</span>
+        </div>
+        <button style={C.btn(ACCENT,'#fff',true)} onClick={()=>{setEditMisura(null);setShowForm(true);}}>+ Aggiungi misura</button>
+      </div>
+
+      {!collapsed && (
+        misure.length === 0
+          ? <div style={{textAlign:'center', padding:'16px', color:'#94a3b8', fontSize:13}}>Nessuna misura. Aggiungile per associarle ai trattamenti e agli asset.</div>
+          : <div style={{display:'flex', flexDirection:'column', gap:6}}>
+              {misure.map(m => {
+                const statCol = m.stato==='Implementata'?'#16a34a':m.stato==='In corso'?'#d97706':m.stato==='Pianificata'?'#2563eb':'#94a3b8';
+                return (
+                  <div key={m.id} style={{display:'flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:8, background:'#f8fafc', border:'1px solid #e5eaf0', borderLeft:`3px solid ${statCol}`}}>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+                        <span style={{fontWeight:600, fontSize:13, color:'#0f172a'}}>{m.nome}</span>
+                        <StatusBadge label={m.tipo} color={TIPO_COLOR[m.tipo]||'#64748b'}/>
+                        <StatusBadge label={m.stato} color={statCol}/>
+                        {m.riferimentoArt32 && <span style={{fontSize:10, color:'#64748b', background:'#f1f5f9', padding:'1px 6px', borderRadius:8}}>{m.riferimentoArt32.split('—')[0].trim()}</span>}
+                      </div>
+                      {m.descrizione && <div style={{fontSize:11, color:'#64748b', marginTop:2}}>{m.descrizione}</div>}
+                      <div style={{display:'flex', gap:10, marginTop:2}}>
+                        {m.responsabile && <span style={{fontSize:11, color:'#94a3b8'}}>👤 {m.responsabile}</span>}
+                        {m.dataVerifica && <span style={{fontSize:11, color:'#94a3b8'}}>📅 {new Date(m.dataVerifica).toLocaleDateString('it-IT')}</span>}
+                      </div>
+                    </div>
+                    <div style={C.row}>
+                      <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>{setEditMisura(m);setShowForm(true);}}>✏️</button>
+                      {confirmDel === m.id
+                        ? <>
+                            <button style={C.btn('#dc2626','#fff',true)} onClick={()=>{onChange(misure.filter(x=>x.id!==m.id));setConfirmDel(null);}}>Conferma</button>
+                            <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>setConfirmDel(null)}>✕</button>
+                          </>
+                        : <button style={C.btn('#fff5f5','#dc2626',true)} onClick={()=>setConfirmDel(m.id)}>🗑️</button>
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+      )}
     </div>
   );
 }
 
 // ---- TRATTAMENTO FORM ----
-const EMPTY_T = { nome:'',funzioneAziendale:'',finalita:'',baseGiuridica:'',categorieDati:'',categorieInteressati:'',destinatariInterni:'',destinatariEsterni:'',paesiTerzi:'',retention:'',stato:'Attivo',note:'',assetIds:[],supplierIds:[],misurePerAsset:{} };
+const EMPTY_T = { nome:'',funzioneAziendale:'',finalita:'',baseGiuridica:'',categorieDati:'',categorieInteressati:'',destinatariInterni:'',destinatariEsterni:'',paesiTerzi:'',retention:'',stato:'Attivo',note:'',assetIds:[],supplierIds:[],misureIds:[],misurePerAsset:{} };
 
 function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveFunzioni, onSave, onCancel }) {
   const [f, setF] = useState(initial || EMPTY_T);
@@ -408,6 +471,29 @@ function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveF
         </div>
       )}
 
+      {/* Misure Art.32 dirette sul trattamento */}
+      {misure.length>0 && (
+        <div style={{...C.card,marginBottom:16}}>
+          <SectionTitle>🔒 Misure di Sicurezza Art.32 (associate al trattamento)</SectionTitle>
+          <div style={{fontSize:12,color:'#64748b',marginBottom:10}}>Seleziona le misure di sicurezza applicabili a questo trattamento nel suo complesso.</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {misure.map(m=>{
+              const checked = (f.misureIds||[]).includes(m.id);
+              const statCol = m.stato==='Implementata'?'#16a34a':m.stato==='In corso'?'#d97706':m.stato==='Pianificata'?'#2563eb':'#94a3b8';
+              return (
+                <button key={m.id} onClick={()=>{
+                  const cur = f.misureIds||[];
+                  setF(p=>({...p,misureIds:cur.includes(m.id)?cur.filter(x=>x!==m.id):[...cur,m.id]}));
+                }}
+                  style={{...C.btn(checked?statCol:'#f1f5f9',checked?'#fff':'#374151',true),border:`1.5px solid ${checked?statCol:'#e2e8f0'}`}}>
+                  {checked?'✓ ':''}{m.nome} <span style={{opacity:.6,fontSize:10}}>({m.tipo})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={C.row}>
         <button style={C.btn()} onClick={()=>{if(!f.nome||!f.finalita||!f.baseGiuridica){alert('Compila i campi obbligatori (*)');return;}onSave(f);}}>💾 Salva Trattamento</button>
         <button style={C.btn('#f1f5f9','#374151')} onClick={onCancel}>Annulla</button>
@@ -421,7 +507,7 @@ function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpe
   const [confirmDel, setConfirmDel] = useState(false);
   const assetNames = (t.assetIds||[]).map(id=>assets.find(a=>a.id===id)?.nome).filter(Boolean);
   const suppNames  = (t.supplierIds||[]).map(id=>suppliers.find(s=>s.id===id)?.nome).filter(Boolean);
-  const totMisure = Object.values(t.misurePerAsset||{}).reduce((s,arr)=>s+arr.length,0);
+  const totMisure = (t.misureIds||[]).length + Object.values(t.misurePerAsset||{}).reduce((s,arr)=>s+arr.length,0);
   return (
     <div style={{...C.card,borderLeft:`4px solid ${STATO_COLOR[t.stato]||'#94a3b8'}`}}>
       <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
@@ -660,6 +746,34 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
                     <div style={{fontSize:12,color:'#64748b'}}>{s.servizio} · {s.paeseSede}</div>
                   </div>
                   <StatusBadge label={s.ruolo} color={roleColor[s.ruolo]||'#64748b'}/>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Misure Art.32 dirette */}
+      {(t.misureIds||[]).length>0 && (
+        <div style={{marginTop:16}}>
+          <SectionTitle>🔒 Misure di Sicurezza Art.32</SectionTitle>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {(t.misureIds||[]).map(mid=>{
+              const m=misuraObj[mid]; if(!m) return null;
+              const statCol = m.stato==='Implementata'?'#16a34a':m.stato==='In corso'?'#d97706':m.stato==='Pianificata'?'#2563eb':'#94a3b8';
+              return (
+                <div key={mid} style={{padding:'8px 12px',background:'#f8fafc',borderRadius:8,borderLeft:`3px solid ${statCol}`}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                    <span style={{fontWeight:600,fontSize:13,color:'#0f172a'}}>{m.nome}</span>
+                    <StatusBadge label={m.tipo} color={TIPO_COLOR[m.tipo]||'#64748b'}/>
+                    <StatusBadge label={m.stato} color={statCol}/>
+                    {m.riferimentoArt32&&<span style={{fontSize:10,color:'#64748b',background:'#f1f5f9',padding:'1px 6px',borderRadius:8}}>{m.riferimentoArt32.split('—')[0].trim()}</span>}
+                  </div>
+                  {m.descrizione&&<div style={{fontSize:11,color:'#64748b',marginTop:3}}>{m.descrizione}</div>}
+                  <div style={{display:'flex',gap:12,marginTop:3}}>
+                    {m.responsabile&&<span style={{fontSize:11,color:'#94a3b8'}}>👤 {m.responsabile}</span>}
+                    {m.dataVerifica&&<span style={{fontSize:11,color:'#94a3b8'}}>📅 {new Date(m.dataVerifica).toLocaleDateString('it-IT')}</span>}
+                  </div>
                 </div>
               );
             })}

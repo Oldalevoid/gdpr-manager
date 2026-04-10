@@ -6,13 +6,22 @@ const IMP_LABELS  = ['','Trascurabile','Moderato','Significativo','Grave'];
 const riskColor = r => r<=4?'#16a34a':r<=8?'#d97706':r<=12?'#ea580c':'#dc2626';
 const riskLabel = r => r<=4?'Basso':r<=8?'Medio':r<=12?'Alto':'Critico';
 
-export function ScenarioForm({ initial, onSave, onCancel }) {
-  const empty = { minaccia:'', vulnerabilita:'', probabilita:1, impatto:1, misureMitigazione:'', rischioResiduo:1 };
+export function ScenarioForm({ initial, onSave, onCancel, misure = [] }) {
+  const empty = { minaccia:'', vulnerabilita:'', probabilita:1, impatto:1, misureIds:[], misureMitigazione:'', rischioResiduo:1 };
   const [f, setF] = useState(initial || empty);
   const u = (k,v) => setF(p=>({...p,[k]:v}));
   const rischio = f.probabilita * f.impatto;
+
+  const toggleMisura = id => {
+    const cur = f.misureIds||[];
+    setF(p=>({...p, misureIds: cur.includes(id) ? cur.filter(x=>x!==id) : [...cur,id]}));
+  };
+
+  const TIPO_COLOR = { Tecnica:'#0891b2', Organizzativa:'#7c3aed', Fisica:'#b45309', Logica:'#4f46e5' };
+  const statCol = s => s==='Implementata'?'#16a34a':s==='In corso'?'#d97706':s==='Pianificata'?'#2563eb':'#94a3b8';
+
   return (
-    <Modal onClose={onCancel} maxWidth={600}>
+    <Modal onClose={onCancel} maxWidth={640}>
       <h3 style={{margin:'0 0 18px',color:'#0f172a'}}>{initial?'✏️ Modifica scenario':'➕ Nuovo scenario di rischio'}</h3>
       <Fld id='minaccia' label='Minaccia *' val={f.minaccia} onChange={u} ph='es. Accesso non autorizzato, Perdita dati...'/>
       <Fld id='vulnerabilita' label='Vulnerabilità' type='textarea' val={f.vulnerabilita} onChange={u} ph='es. Mancanza di autenticazione forte, assenza di backup...'/>
@@ -39,7 +48,33 @@ export function ScenarioForm({ initial, onSave, onCancel }) {
           </div>
         </div>
       </div>
-      <Fld id='misureMitigazione' label='Misure di mitigazione' type='textarea' val={f.misureMitigazione} onChange={u} ph='es. Implementare 2FA, cifratura dati a riposo...'/>
+
+      {/* Misure Art.32 dalla libreria */}
+      {misure.length > 0 && (
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>🔒 Misure di sicurezza Art.32 (dalla libreria)</label>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:4}}>
+            {misure.map(m=>{
+              const sel = (f.misureIds||[]).includes(m.id);
+              const sc = statCol(m.stato);
+              return (
+                <button key={m.id} type='button' onClick={()=>toggleMisura(m.id)}
+                  style={{...C.btn(sel?sc:'#f1f5f9', sel?'#fff':'#374151', true), border:`1.5px solid ${sel?sc:'#e2e8f0'}`, borderRadius:16}}>
+                  {sel?'✓ ':''}{m.nome}
+                  <span style={{opacity:.6,fontSize:10}}> ({m.tipo})</span>
+                </button>
+              );
+            })}
+          </div>
+          {(f.misureIds||[]).length > 0 && (
+            <div style={{fontSize:11,color:'#16a34a',marginTop:4,fontWeight:600}}>
+              ✓ {(f.misureIds||[]).length} misura{(f.misureIds||[]).length!==1?'e':''} selezionata{(f.misureIds||[]).length!==1?'e':''}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Fld id='misureMitigazione' label='Note aggiuntive sulle misure di mitigazione' type='textarea' val={f.misureMitigazione} onChange={u} ph='es. Note specifiche non coperte dalle misure sopra...'/>
       <div style={{marginBottom:18}}>
         <label style={C.lbl}>Rischio residuo (1-4) dopo mitigazione</label>
         <input type='range' min={1} max={4} step={1} value={f.rischioResiduo}
@@ -99,8 +134,10 @@ function RiskMatrix({ scenarios }) {
   );
 }
 
-function ScenarioList({ scenarios, onAdd, onEdit, onDelete }) {
+function ScenarioList({ scenarios, onAdd, onEdit, onDelete, misure = [] }) {
   const [confirmDel, setConfirmDel] = useState(null);
+  const misuraMap = Object.fromEntries(misure.map(m=>[m.id,m]));
+  const statCol = s => s==='Implementata'?'#16a34a':s==='In corso'?'#d97706':s==='Pianificata'?'#2563eb':'#94a3b8';
   return (
     <div>
       <div style={{...C.row,justifyContent:'space-between',marginBottom:12}}>
@@ -112,6 +149,7 @@ function ScenarioList({ scenarios, onAdd, onEdit, onDelete }) {
         : <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {scenarios.map(s=>{
               const rischio = s.probabilita*s.impatto;
+              const misureCollegate = (s.misureIds||[]).map(id=>misuraMap[id]).filter(Boolean);
               return (
                 <div key={s.id} style={{...C.card,padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start',borderLeft:`4px solid ${riskColor(rischio)}`}}>
                   <div style={{flex:1}}>
@@ -125,7 +163,16 @@ function ScenarioList({ scenarios, onAdd, onEdit, onDelete }) {
                       <span>I:{s.impatto} ({IMP_LABELS[s.impatto]})</span>
                       {s.rischioResiduo&&<span>Residuo: {s.rischioResiduo}</span>}
                     </div>
-                    {s.misureMitigazione&&<div style={{fontSize:12,color:'#374151',marginTop:4}}>🛡️ {s.misureMitigazione}</div>}
+                    {misureCollegate.length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
+                        {misureCollegate.map(m=>(
+                          <span key={m.id} style={{fontSize:10,fontWeight:700,padding:'1px 7px',borderRadius:10,background:statCol(m.stato)+'18',color:statCol(m.stato),border:`1px solid ${statCol(m.stato)}44`}}>
+                            🔒 {m.nome}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {s.misureMitigazione&&<div style={{fontSize:12,color:'#374151',marginTop:4}}>📝 {s.misureMitigazione}</div>}
                   </div>
                   <div style={C.row}>
                     <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>onEdit(s)}>✏️</button>
@@ -158,7 +205,7 @@ export function TrattamentoSelector({ trattamenti, selectedId, onSelect }) {
   );
 }
 
-export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSelId }) {
+export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSelId, misure = [] }) {
   const [selId, setSelId] = useState(initialSelId||trattamenti[0]?.id||null);
   const [showForm, setShowForm] = useState(false);
   const [editScenario, setEditScenario] = useState(null);
@@ -192,6 +239,7 @@ export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSel
       {(showForm||editScenario) && (
         <ScenarioForm
           initial={editScenario}
+          misure={misure}
           onSave={handleSaveScenario}
           onCancel={()=>{setShowForm(false);setEditScenario(null);}}
         />
@@ -206,6 +254,7 @@ export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSel
                   <RiskMatrix scenarios={scenarios}/>
                   <ScenarioList
                     scenarios={scenarios}
+                    misure={misure}
                     onAdd={()=>{setEditScenario(null);setShowForm(true);}}
                     onEdit={s=>{setEditScenario(s);setShowForm(true);}}
                     onDelete={handleDelete}

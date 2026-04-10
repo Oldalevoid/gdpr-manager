@@ -468,7 +468,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
       {tab==='repo'&&<ClientRepo docs={docs} onView={onView} onDelete={onDeleteDoc} onExport={onExport}/>}
       {tab==='registro'&&<RegistroTrattamenti trattamenti={trattamenti} misure={misure} assets={assets} suppliers={suppliers} client={client} funzioni={funzioni||[]} onSaveFunzioni={onSaveFunzioni} onSaveTrattamento={onSaveTrattamento} onSaveManyTrattamenti={onSaveManyTrattamenti} onDeleteTrattamento={onDeleteTrattamento} onSaveMisure={onSaveMisure} apiKey={apiKey}
         onGoToAnalisi={id=>{setAnalisiSelId(id);setTab('rischi');}}/>}
-      {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi} initialSelId={analisiSelId}/>}
+      {tab==='rischi'&&<AnalisiRischi trattamenti={trattamenti} analisi={analisi} onSave={onSaveAnalisi} initialSelId={analisiSelId} misure={misure}/>}
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
       {tab==='breach'&&<DataBreaches breaches={breaches} onSave={onSaveBreach} onDelete={onDeleteBreach}/>}

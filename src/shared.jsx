@@ -76,4 +76,13 @@ export const BASI_GIURIDICHE_ART9 = [
 ];
 export const STATI_TRATTAMENTO = ['Attivo','Sospeso','Cessato'];
 export const TIPI_MISURA = ['Tecnica','Organizzativa','Fisica','Logica'];
-export const STATI_MISURA = ['Implementata','In corso','Pianificata'];
+export const STATI_MISURA = ['Implementata','In corso','Pianificata','Non implementata'];
+export const ART32_RIFERIMENTI = [
+  'Art.32.1.a — Pseudonimizzazione e cifratura',
+  'Art.32.1.b — Riservatezza, integrità, disponibilità e resilienza',
+  'Art.32.1.c — Ripristino disponibilità/accesso (disaster recovery)',
+  'Art.32.1.d — Procedura test, verifica e valutazione efficacia',
+  'Art.32.2 — Rischi presentazione, distruzione accidentale/illecita',
+  'Art.32 — Misura tecnica generale',
+  'Art.32 — Misura organizzativa generale',
+];
