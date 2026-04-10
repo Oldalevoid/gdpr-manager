@@ -1473,7 +1473,7 @@ export default function App() {
             assets={clientAssets}
             suppliers={clientSuppliers}
             docSettings={docSettings}
-            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setExtraPrompt('');setUseRegistro(false);setChatHistory([]);setFollowUpPrompt('');setPrev('client');setSelModule('gdpr');setPage('generate');}}
+            onGenerate={dt=>{setSelDt(dt);setInputs({});setGenDoc(null);setExtraPrompt('');setChatHistory([]);setFollowUpPrompt('');setPrev('client');setSelModule('gdpr');setPage('generate');}}
             onView={doc=>{setViewDoc(doc);setPrev('client');setPage('view');}}
             onDeleteDoc={handleDeleteDoc}
             onExport={exportToDoc}
