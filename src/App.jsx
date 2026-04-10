@@ -8,6 +8,8 @@ import DataBreaches from './DataBreaches';
 import NIS2GapAnalysis from './NIS2GapAnalysis';
 import { NIS2Assets, NIS2Misure } from './NIS2AssetsMisure';
 import NIS2RiskVERA from './NIS2RiskVERA';
+import Login from './Login';
+import { filterClientsForUser, canCreateClient, canDeleteClient } from './auth';
 
 const PRIMARY = '#1a3a5c';
 const ACCENT = '#2563eb';
@@ -476,20 +478,20 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
 }
 
 // ---- DASHBOARD ----
-function Dashboard({clients,onOpen,onNew,onEdit,onDelete}) {
+function Dashboard({clients,onOpen,onNew,onEdit,onDelete,canCreate,canDelete}) {
   const [del,setDel]=useState(null);
   return (
     <div>
       <div style={{...C.row,justifyContent:'space-between',marginBottom:20}}>
         <div><h2 style={{margin:0,fontSize:21,color:'#0f172a'}}>👥 Clienti</h2><p style={{margin:'3px 0 0',color:'#64748b',fontSize:13}}>{clients.length} cliente{clients.length!==1?'i':''} registrat{clients.length!==1?'i':'o'}</p></div>
-        <button style={C.btn()} onClick={onNew}>+ Nuovo Cliente</button>
+        {canCreate&&<button style={C.btn()} onClick={onNew}>+ Nuovo Cliente</button>}
       </div>
       {!clients.length?(
         <div style={{...C.card,textAlign:'center',padding:'60px 20px'}}>
           <div style={{fontSize:52,marginBottom:14}}>📁</div>
           <h3 style={{margin:'0 0 8px',color:'#1e293b'}}>Nessun cliente ancora</h3>
           <p style={{margin:'0 0 20px',color:'#94a3b8'}}>Inizia aggiungendo il tuo primo cliente</p>
-          <button style={C.btn()} onClick={onNew}>+ Aggiungi Cliente</button>
+          {canCreate&&<button style={C.btn()} onClick={onNew}>+ Aggiungi Cliente</button>}
         </div>
       ):(
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(285px,1fr))',gap:14}}>
@@ -510,9 +512,9 @@ function Dashboard({clients,onOpen,onNew,onEdit,onDelete}) {
                 </div>
                 <div style={{borderTop:'1px solid #f1f5f9',paddingTop:10,...C.row}}>
                   <button style={C.btn('#f1f5f9','#374151',true)} onClick={e=>{e.stopPropagation();onEdit(c);}}>✏️ Modifica</button>
-                  {del===c.id
+                  {canDelete&&(del===c.id
                     ?<><button style={C.btn('#dc2626','#fff',true)} onClick={e=>{e.stopPropagation();onDelete(c.id);setDel(null);}}>Conferma</button><button style={C.btn('#f1f5f9','#374151',true)} onClick={e=>{e.stopPropagation();setDel(null);}}>✕</button></>
-                    :<button style={C.btn('#fff5f5','#dc2626',true)} onClick={e=>{e.stopPropagation();setDel(c.id);}}>🗑️</button>}
+                    :<button style={C.btn('#fff5f5','#dc2626',true)} onClick={e=>{e.stopPropagation();setDel(c.id);}}>🗑️</button>)}
                 </div>
               </div>
             );
@@ -1041,6 +1043,7 @@ function ApiKeyModal({apiKey, onSave, onClose}) {
 
 // ---- MAIN APP ----
 export default function App() {
+  const [currentUser,setCurrentUser]=useState(()=>{try{return JSON.parse(localStorage.getItem('gdpr:user')||'null');}catch{return null;}});
   const [page,setPage]=useState('dashboard');
   const [prevPage,setPrev]=useState('client');
   const [selModule,setSelModule]=useState(null); // 'gdpr'|'nis2'|'aiact'
@@ -1355,7 +1358,19 @@ export default function App() {
   async function handleDeleteDoc(doc){await saveDocs(clientDocs.filter(d=>d.id!==doc.id));}
   function copy(text){navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2200);}
 
+  if(!currentUser) return <Login onLogin={u=>{setCurrentUser(u);}} />;
   if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter, system-ui, sans-serif',color:'#64748b',fontSize:16}}>⏳ Caricamento...</div>;
+
+  const visibleClients = filterClientsForUser(clients, currentUser);
+  const userCanCreate  = canCreateClient(currentUser);
+  const userCanDelete  = canDeleteClient(currentUser);
+
+  function handleLogout() {
+    localStorage.removeItem('gdpr:user');
+    setCurrentUser(null);
+    setSelClient(null);
+    setPage('dashboard');
+  }
 
   const NavBtn=({label,pg,onClick})=>(
     <button onClick={onClick||(()=>setPage(pg))} style={{background:'none',border:'none',borderBottom:page===pg?'2px solid #fff':'2px solid transparent',color:page===pg?'#fff':'rgba(255,255,255,.65)',fontWeight:page===pg?700:400,fontSize:13,cursor:'pointer',padding:'18px 10px',fontFamily:'inherit',whiteSpace:'nowrap'}}>
@@ -1405,6 +1420,16 @@ export default function App() {
           >
             ⚙️ API Key
           </button>
+          <div style={{width:1,height:20,background:'rgba(255,255,255,.2)',margin:'0 4px'}}/>
+          <span style={{color:'rgba(255,255,255,.7)',fontSize:12,fontWeight:600}}>
+            {currentUser.role==='superuser'?'👑':'👤'} {currentUser.displayName}
+          </span>
+          <button
+            style={{...C.btn('rgba(255,255,255,.12)','rgba(255,255,255,.8)',true),fontSize:12}}
+            onClick={handleLogout}
+          >
+            Esci
+          </button>
         </div>
       </nav>
 
@@ -1412,11 +1437,13 @@ export default function App() {
       <div style={{maxWidth:1200,margin:'0 auto',padding:'28px 20px'}}>
         {page==='dashboard'&&(
           <Dashboard
-            clients={clients}
+            clients={visibleClients}
             onOpen={openClient}
             onNew={()=>{setEditClient(null);setPage('new-client');}}
             onEdit={c=>{setEditClient(c);setPage('edit-client');}}
             onDelete={handleDeleteClient}
+            canCreate={userCanCreate}
+            canDelete={userCanDelete}
           />
         )}
         {(page==='new-client'||page==='edit-client')&&(
