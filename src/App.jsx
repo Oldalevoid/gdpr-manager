@@ -1263,7 +1263,7 @@ export default function App() {
 
 
   async function callGroq(messages, maxTokens, temperature) {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const r = await fetch("/api/groq/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({ model:"llama-3.3-70b-versatile", max_tokens:maxTokens, temperature, messages })
