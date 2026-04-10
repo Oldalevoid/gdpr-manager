@@ -228,47 +228,68 @@ Redigi un DPA completo e vincolante. Struttura:
 }
 
 // ---- DOCUMENT RENDERER ----
+function renderInline(text) {
+  // Parse **bold**, *italic*, ***bold-italic*** into React spans
+  const parts = [];
+  const re = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[2]) parts.push(<strong key={m.index}><em>{m[2]}</em></strong>);
+    else if (m[3]) parts.push(<strong key={m.index}>{m[3]}</strong>);
+    else if (m[4]) parts.push(<em key={m.index}>{m[4]}</em>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 function DocRenderer({ content }) {
   if (!content) return null;
   const lines = content.split('\n');
   const styled = lines.map((line, i) => {
     const trimmed = line.trim();
     if (!trimmed) return <div key={i} style={{ height: 10 }} />;
+
+    // Headings markdown
+    if (/^### /.test(trimmed)) return <div key={i} style={{ fontWeight:700, fontSize:13, color:'#1e3a5f', marginTop:14, marginBottom:3 }}>{renderInline(trimmed.slice(4))}</div>;
+    if (/^## /.test(trimmed))  return <div key={i} style={{ fontWeight:800, fontSize:14, color:'#1a3a5c', marginTop:18, marginBottom:5, borderBottom:'2px solid #e2e8f0', paddingBottom:4 }}>{renderInline(trimmed.slice(3))}</div>;
+    if (/^# /.test(trimmed))   return <div key={i} style={{ fontWeight:800, fontSize:16, color:'#0f172a', marginTop:22, marginBottom:8, textAlign:'center' }}>{renderInline(trimmed.slice(2))}</div>;
+
+    // Articoli numerati
+    if (/^(Art\.|Articolo|ARTICOLO)\s*\d/i.test(trimmed)) {
+      return <div key={i} style={{ fontWeight:700, fontSize:14, color:'#1e3a5f', marginTop:18, marginBottom:4 }}>{renderInline(trimmed)}</div>;
+    }
+    // Righe in maiuscolo = titolo sezione
     if (/^[A-ZÀÈÉÌÒÙ\s\d\-–—:.,()]{8,}$/.test(trimmed) && trimmed.length < 90 && !/^[-=*•·▸▶►]/.test(trimmed)) {
-      return <div key={i} style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', marginTop: 22, marginBottom: 6, borderBottom: '2px solid #e2e8f0', paddingBottom: 5, letterSpacing: '.3px' }}>{trimmed}</div>;
+      return <div key={i} style={{ fontWeight:800, fontSize:15, color:'#0f172a', marginTop:22, marginBottom:6, borderBottom:'2px solid #e2e8f0', paddingBottom:5, letterSpacing:'.3px' }}>{trimmed}</div>;
     }
-    if (/^(\d+\.(\d+\.?)?\s|Art(\.|icolo)?\s?\d|ARTICOLO\s?\d)/i.test(trimmed)) {
-      return <div key={i} style={{ fontWeight: 700, fontSize: 14, color: '#1e3a5f', marginTop: 16, marginBottom: 4 }}>{trimmed}</div>;
+    if (/^[=\-_]{5,}$/.test(trimmed)) {
+      return <hr key={i} style={{ border:'none', borderTop:'1px solid #e2e8f0', margin:'12px 0' }} />;
     }
-    if (/^[A-ZÀÈÉÌÒÙ][^a-z]{0,3}[a-zA-ZÀ-ÿ\s]{2,40}:$/.test(trimmed) || /^[A-ZÀÈÉÌÒÙ][A-ZÀ-Ÿa-zà-ÿ\s]{1,40}:\s*$/.test(trimmed)) {
-      return <div key={i} style={{ fontWeight: 700, fontSize: 11, color: '#6b7280', marginTop: 12, marginBottom: 2, textTransform:'uppercase', letterSpacing:'.4px' }}>{trimmed}</div>;
-    }
-    if (/^[-–•·▸▶►*]\s/.test(trimmed)) {
+    if (/^[-–•·▸▶►]\s/.test(trimmed)) {
       return (
-        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 3, paddingLeft: 8 }}>
-          <span style={{ color: ACCENT, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>•</span>
-          <span style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.7 }}>{trimmed.replace(/^[-–•·▸▶►*]\s+/, '')}</span>
+        <div key={i} style={{ display:'flex', gap:8, marginBottom:3, paddingLeft:8 }}>
+          <span style={{ color:ACCENT, fontWeight:700, flexShrink:0, marginTop:1 }}>•</span>
+          <span style={{ fontSize:13.5, color:'#334155', lineHeight:1.7 }}>{renderInline(trimmed.replace(/^[-–•·▸▶►]\s+/,''))}</span>
         </div>
       );
     }
-    if (/^[a-z]\)\s|^\d+\)\s/.test(trimmed)) {
-      const [marker, ...rest] = trimmed.split(/(?<=^[a-z\d]\))\s/);
-      return (
-        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 3, paddingLeft: 8 }}>
-          <span style={{ color: ACCENT, fontWeight: 700, flexShrink: 0, minWidth: 20 }}>{marker}</span>
-          <span style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.7 }}>{rest.join(' ')}</span>
+    if (/^[a-z]\)\s|^\d+[.)]\s/.test(trimmed)) {
+      const match = trimmed.match(/^([a-z\d]+[.)]) (.*)/s);
+      if (match) return (
+        <div key={i} style={{ display:'flex', gap:8, marginBottom:3, paddingLeft:8 }}>
+          <span style={{ color:ACCENT, fontWeight:700, flexShrink:0, minWidth:20 }}>{match[1]}</span>
+          <span style={{ fontSize:13.5, color:'#334155', lineHeight:1.7 }}>{renderInline(match[2])}</span>
         </div>
       );
     }
     if (/firma|data[:\s]|luogo[:\s]|il\s+titolare|il\s+responsabile|il\s+dpo/i.test(trimmed) && trimmed.length < 60) {
-      return <div key={i} style={{ marginTop: 20, paddingTop: 14, borderTop: '1px dashed #e2e8f0', fontSize: 13, color: '#374151', fontStyle: 'italic' }}>{trimmed}</div>;
+      return <div key={i} style={{ marginTop:20, paddingTop:14, borderTop:'1px dashed #e2e8f0', fontSize:13, color:'#374151', fontStyle:'italic' }}>{renderInline(trimmed)}</div>;
     }
-    if (/^[=\-_]{5,}$/.test(trimmed)) {
-      return <hr key={i} style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '12px 0' }} />;
-    }
-    return <p key={i} style={{ margin: '0 0 4px', fontSize: 13.5, color: '#334155', lineHeight: 1.75 }}>{trimmed}</p>;
+    return <p key={i} style={{ margin:'0 0 4px', fontSize:13.5, color:'#334155', lineHeight:1.75 }}>{renderInline(trimmed)}</p>;
   });
-  return <div style={{ fontFamily: '"Calibri", "Georgia", serif' }}>{styled}</div>;
+  return <div style={{ fontFamily:'"Calibri", "Georgia", serif' }}>{styled}</div>;
 }
 
 function markdownToHtml(text) {
@@ -770,10 +791,11 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,onDocEdit,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
+  const [editMode, setEditMode] = useState(false);
   return (
     <div>
       <button style={{...C.btn('#f1f5f9','#374151',true),marginBottom:16}} onClick={onBack}>← Indietro</button>
@@ -886,13 +908,30 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
                   {autoSaved&&<div style={{fontSize:11,color:'#16a34a',marginTop:3,fontWeight:600}}>✅ Salvato in Repository</div>}
                 </div>
                 <div style={C.row}>
+                  <button
+                    style={C.btn(editMode?'#fef3c7':'#f1f5f9', editMode?'#92400e':'#374151', true)}
+                    onClick={()=>setEditMode(m=>!m)}
+                    title={editMode?'Torna all\'anteprima':'Modifica testo'}
+                  >
+                    {editMode ? '👁️ Anteprima' : '✏️ Modifica'}
+                  </button>
                   <button style={C.btn('#f1f5f9','#374151',true)} onClick={()=>onCopy(genDoc)}>{copied?'✅':'📋'} Copia</button>
                   <button style={C.btn('#4f46e5','#fff',true)} onClick={()=>onExport(genDoc,`${dt.label}_${client.ragioneSociale}`)}>📥 .doc</button>
                 </div>
               </div>
-              <div style={{maxHeight:480,overflowY:'auto',padding:'20px 24px',background:'#fff',borderRadius:8,border:'1px solid #e2e8f0',boxShadow:'inset 0 1px 3px rgba(0,0,0,0.04)'}}>
-                <DocRenderer content={genDoc}/>
-              </div>
+              {editMode ? (
+                <textarea
+                  value={genDoc}
+                  onChange={e=>onDocEdit(e.target.value)}
+                  style={{width:'100%',minHeight:480,padding:'16px',border:'1.5px solid #fbbf24',borderRadius:8,fontSize:13,boxSizing:'border-box',outline:'none',fontFamily:'"Courier New",monospace',lineHeight:1.7,resize:'vertical',background:'#fffbeb'}}
+                  onFocus={e=>e.target.style.borderColor='#f59e0b'}
+                  onBlur={e=>e.target.style.borderColor='#fbbf24'}
+                />
+              ) : (
+                <div style={{maxHeight:480,overflowY:'auto',padding:'20px 24px',background:'#fff',borderRadius:8,border:'1px solid #e2e8f0',boxShadow:'inset 0 1px 3px rgba(0,0,0,0.04)'}}>
+                  <DocRenderer content={genDoc}/>
+                </div>
+              )}
             </div>
 
             {/* Chat follow-up */}
@@ -1726,6 +1765,7 @@ export default function App() {
             onGenerate={handleGenerate}
             generating={generating}
             genDoc={genDoc}
+            onDocEdit={v=>setGenDoc(v)}
             error={error}
             onCopy={copy}
             copied={copied}
