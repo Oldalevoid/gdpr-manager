@@ -92,7 +92,8 @@ function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const ci = `Ragione Sociale: ${client.ragioneSociale}\nSettore: ${client.settore}\nTitolare: ${client.titolare}\nP.IVA: ${client.piva}\nSede: ${client.sede}${client.dpo?`\nDPO: ${client.dpo}`:''}`;
   const assetStr = assets?.length ? `\nASSET AZIENDALI:\n${assets.map(a=>`- ${a.nome} (${a.categoria}${a.note?', '+a.note:''})`).join('\n')}` : '';
   const supplierStr = suppliers?.length ? `\nFORNITORI NOTI:\n${suppliers.map(s=>`- ${s.nome} | ${s.ruolo} | ${s.servizio}`).join('\n')}` : '';
-  const tmplStr = settings?.templateText ? `\n\nTEMPLATE DI RIFERIMENTO (segui questa struttura adattando il contenuto al cliente):\n${settings.templateText}` : '';
+  const layoutSrc = inp.layoutText || settings?.templateText || '';
+  const tmplStr = layoutSrc ? `\n\n═══════════════════════════════════════\nLAYOUT OBBLIGATORIO — SEGUI QUESTA STRUTTURA ESATTA\n═══════════════════════════════════════\nDevi riprodurre ESATTAMENTE questa struttura: stesse sezioni, stessi titoli, stesse tabelle con le stesse colonne. Compila ogni segnaposto [TESTO] con il contenuto appropriato. Non aggiungere né rimuovere sezioni. Mantieni tutte le tabelle markdown (| col | col |) con le stesse colonne.\n\n${layoutSrc}\n═══════════════════════════════════════` : '';
   const base = `DATI CLIENTE:\n${ci}${assetStr}${supplierStr}\n`;
   const map = {
     informativa: base+`DOCUMENTO DA REDIGERE: Informativa sul Trattamento dei Dati Personali ai sensi degli artt. 13-14 del Regolamento (UE) 2016/679 (GDPR)
@@ -244,51 +245,105 @@ function renderInline(text) {
   return parts;
 }
 
+function parseTable(lines, startIdx) {
+  // Returns { rows, nextIdx } where rows[0] is the header
+  const rows = [];
+  let i = startIdx;
+  while (i < lines.length && /^\|/.test(lines[i].trim())) {
+    const row = lines[i].trim();
+    if (/^\|[-| :]+\|$/.test(row)) { i++; continue; } // skip separator
+    const cells = row.split('|').slice(1,-1).map(c => c.trim());
+    rows.push(cells);
+    i++;
+  }
+  return { rows, nextIdx: i };
+}
+
 function DocRenderer({ content }) {
   if (!content) return null;
   const lines = content.split('\n');
-  const styled = lines.map((line, i) => {
+  const styled = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
     const trimmed = line.trim();
-    if (!trimmed) return <div key={i} style={{ height: 10 }} />;
+
+    // Detect markdown table
+    if (/^\|/.test(trimmed) && i+1 < lines.length && /^\|[-| :]+\|$/.test(lines[i+1]?.trim())) {
+      const { rows, nextIdx } = parseTable(lines, i);
+      if (rows.length > 0) {
+        const [header, ...body] = rows;
+        styled.push(
+          <div key={i} style={{ overflowX:'auto', marginBottom:14, marginTop:8 }}>
+            <table style={{ borderCollapse:'collapse', width:'100%', fontSize:13, fontFamily:'"Calibri","Georgia",serif' }}>
+              <thead>
+                <tr>{header.map((cell,ci) => (
+                  <th key={ci} style={{ border:'1px solid #d0d7e3', padding:'7px 12px', background:'#f0f4f8', fontWeight:700, color:'#1a3a5c', textAlign:'left' }}>
+                    {renderInline(cell)}
+                  </th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {body.map((row,ri) => (
+                  <tr key={ri} style={{ background: ri%2===0?'#fff':'#f8fafc' }}>
+                    {row.map((cell,ci) => (
+                      <td key={ci} style={{ border:'1px solid #e2e8f0', padding:'6px 12px', color:'#334155', verticalAlign:'top' }}>
+                        {renderInline(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        i = nextIdx;
+        continue;
+      }
+    }
+
+    if (!trimmed) { styled.push(<div key={i} style={{ height: 10 }} />); i++; continue; }
 
     // Headings markdown
-    if (/^### /.test(trimmed)) return <div key={i} style={{ fontWeight:700, fontSize:13, color:'#1e3a5f', marginTop:14, marginBottom:3 }}>{renderInline(trimmed.slice(4))}</div>;
-    if (/^## /.test(trimmed))  return <div key={i} style={{ fontWeight:800, fontSize:14, color:'#1a3a5c', marginTop:18, marginBottom:5, borderBottom:'2px solid #e2e8f0', paddingBottom:4 }}>{renderInline(trimmed.slice(3))}</div>;
-    if (/^# /.test(trimmed))   return <div key={i} style={{ fontWeight:800, fontSize:16, color:'#0f172a', marginTop:22, marginBottom:8, textAlign:'center' }}>{renderInline(trimmed.slice(2))}</div>;
+    if (/^### /.test(trimmed)) { styled.push(<div key={i} style={{ fontWeight:700, fontSize:13, color:'#1e3a5f', marginTop:14, marginBottom:3 }}>{renderInline(trimmed.slice(4))}</div>); i++; continue; }
+    if (/^## /.test(trimmed))  { styled.push(<div key={i} style={{ fontWeight:800, fontSize:14, color:'#1a3a5c', marginTop:18, marginBottom:5, borderBottom:'2px solid #e2e8f0', paddingBottom:4 }}>{renderInline(trimmed.slice(3))}</div>); i++; continue; }
+    if (/^# /.test(trimmed))   { styled.push(<div key={i} style={{ fontWeight:800, fontSize:16, color:'#0f172a', marginTop:22, marginBottom:8, textAlign:'center' }}>{renderInline(trimmed.slice(2))}</div>); i++; continue; }
 
     // Articoli numerati
     if (/^(Art\.|Articolo|ARTICOLO)\s*\d/i.test(trimmed)) {
-      return <div key={i} style={{ fontWeight:700, fontSize:14, color:'#1e3a5f', marginTop:18, marginBottom:4 }}>{renderInline(trimmed)}</div>;
+      styled.push(<div key={i} style={{ fontWeight:700, fontSize:14, color:'#1e3a5f', marginTop:18, marginBottom:4 }}>{renderInline(trimmed)}</div>); i++; continue;
     }
     // Righe in maiuscolo = titolo sezione
     if (/^[A-ZÀÈÉÌÒÙ\s\d\-–—:.,()]{8,}$/.test(trimmed) && trimmed.length < 90 && !/^[-=*•·▸▶►]/.test(trimmed)) {
-      return <div key={i} style={{ fontWeight:800, fontSize:15, color:'#0f172a', marginTop:22, marginBottom:6, borderBottom:'2px solid #e2e8f0', paddingBottom:5, letterSpacing:'.3px' }}>{trimmed}</div>;
+      styled.push(<div key={i} style={{ fontWeight:800, fontSize:15, color:'#0f172a', marginTop:22, marginBottom:6, borderBottom:'2px solid #e2e8f0', paddingBottom:5, letterSpacing:'.3px' }}>{trimmed}</div>); i++; continue;
     }
     if (/^[=\-_]{5,}$/.test(trimmed)) {
-      return <hr key={i} style={{ border:'none', borderTop:'1px solid #e2e8f0', margin:'12px 0' }} />;
+      styled.push(<hr key={i} style={{ border:'none', borderTop:'1px solid #e2e8f0', margin:'12px 0' }} />); i++; continue;
     }
     if (/^[-–•·▸▶►]\s/.test(trimmed)) {
-      return (
+      styled.push(
         <div key={i} style={{ display:'flex', gap:8, marginBottom:3, paddingLeft:8 }}>
           <span style={{ color:ACCENT, fontWeight:700, flexShrink:0, marginTop:1 }}>•</span>
           <span style={{ fontSize:13.5, color:'#334155', lineHeight:1.7 }}>{renderInline(trimmed.replace(/^[-–•·▸▶►]\s+/,''))}</span>
         </div>
-      );
+      ); i++; continue;
     }
     if (/^[a-z]\)\s|^\d+[.)]\s/.test(trimmed)) {
       const match = trimmed.match(/^([a-z\d]+[.)]) (.*)/s);
-      if (match) return (
+      if (match) { styled.push(
         <div key={i} style={{ display:'flex', gap:8, marginBottom:3, paddingLeft:8 }}>
           <span style={{ color:ACCENT, fontWeight:700, flexShrink:0, minWidth:20 }}>{match[1]}</span>
           <span style={{ fontSize:13.5, color:'#334155', lineHeight:1.7 }}>{renderInline(match[2])}</span>
         </div>
-      );
+      ); i++; continue; }
     }
     if (/firma|data[:\s]|luogo[:\s]|il\s+titolare|il\s+responsabile|il\s+dpo/i.test(trimmed) && trimmed.length < 60) {
-      return <div key={i} style={{ marginTop:20, paddingTop:14, borderTop:'1px dashed #e2e8f0', fontSize:13, color:'#374151', fontStyle:'italic' }}>{renderInline(trimmed)}</div>;
+      styled.push(<div key={i} style={{ marginTop:20, paddingTop:14, borderTop:'1px dashed #e2e8f0', fontSize:13, color:'#374151', fontStyle:'italic' }}>{renderInline(trimmed)}</div>);
+    } else {
+      styled.push(<p key={i} style={{ margin:'0 0 4px', fontSize:13.5, color:'#334155', lineHeight:1.75 }}>{renderInline(trimmed)}</p>);
     }
-    return <p key={i} style={{ margin:'0 0 4px', fontSize:13.5, color:'#334155', lineHeight:1.75 }}>{renderInline(trimmed)}</p>;
-  });
+    i++;
+  }
   return <div style={{ fontFamily:'"Calibri", "Georgia", serif' }}>{styled}</div>;
 }
 
@@ -312,6 +367,30 @@ function markdownToHtml(text) {
     const trimmed = raw.trim();
 
     if (!trimmed) { closeList(); out.push('<p style="margin:0;line-height:0.6em">&nbsp;</p>'); continue; }
+
+    // Markdown table
+    if (/^\|/.test(trimmed) && i+1 < lines.length && /^\|[-| :]+\|$/.test(lines[i+1]?.trim())) {
+      closeList();
+      const tableRows = [];
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
+        const row = lines[i].trim();
+        if (!/^\|[-| :]+\|$/.test(row)) {
+          tableRows.push(row.split('|').slice(1,-1).map(c => c.trim()));
+        }
+        i++;
+      }
+      i--; // will be incremented by for loop
+      if (tableRows.length > 0) {
+        const [header, ...body] = tableRows;
+        const thCells = header.map(c => `<th style="border:1pt solid #b0b8c8;padding:6pt 10pt;background:#e8edf4;font-weight:bold;text-align:left;color:#1a3a5c">${inlineFormat(esc(c))}</th>`).join('');
+        const bodyRows = body.map((row,ri) => {
+          const tds = row.map(c => `<td style="border:1pt solid #d0d7e3;padding:5pt 10pt;vertical-align:top;color:#1a1a1a">${inlineFormat(esc(c))}</td>`).join('');
+          return `<tr style="background:${ri%2===0?'#fff':'#f8fafc'}">${tds}</tr>`;
+        }).join('');
+        out.push(`<table style="border-collapse:collapse;width:100%;font-family:Calibri,sans-serif;font-size:10.5pt;margin:10pt 0"><thead><tr>${thCells}</tr></thead><tbody>${bodyRows}</tbody></table>`);
+      }
+      continue;
+    }
 
     // Headings markdown
     if (/^### /.test(trimmed)) { closeList(); out.push(`<h3 style="font-family:Calibri,sans-serif;font-size:12pt;color:#1e3a5f;margin:14pt 0 4pt">${inlineFormat(esc(trimmed.slice(4)))}</h3>`); continue; }
@@ -796,6 +875,8 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,o
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
   const [editMode, setEditMode] = useState(false);
+  const [showLayout, setShowLayout] = useState(!!(inputs.layoutText));
+  const layoutFileRef = useRef();
   return (
     <div>
       <button style={{...C.btn('#f1f5f9','#374151',true),marginBottom:16}} onClick={onBack}>← Indietro</button>
@@ -891,6 +972,42 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,o
             <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Istruzioni extra che si sommano ai campi compilati sopra — non sostituisce il system prompt.</div>
           </div>
 
+
+          {/* Layout / Template */}
+          <div style={{marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+              <label style={C.lbl} >📐 Layout documento (opzionale)</label>
+              <button type='button' onClick={()=>setShowLayout(v=>!v)}
+                style={{...C.btn(showLayout?'#4f46e5':'#f1f5f9', showLayout?'#fff':'#374151', true), fontSize:11}}>
+                {showLayout ? '▲ Nascondi' : '▼ Mostra'}
+              </button>
+            </div>
+            {showLayout && (
+              <div style={{border:'1.5px solid #a5b4fc',borderRadius:8,padding:12,background:'#f5f3ff'}}>
+                <div style={{fontSize:12,color:'#5b21b6',marginBottom:10,lineHeight:1.5}}>
+                  Incolla o carica il tuo layout (testo, tabelle markdown <code style={{background:'#ede9fe',padding:'1px 4px',borderRadius:4}}>| Col | Col |</code>, segnaposto come <code style={{background:'#ede9fe',padding:'1px 4px',borderRadius:4}}>[TESTO DA COMPILARE]</code>). L'AI manterrà la struttura e le tabelle esatte.
+                </div>
+                <input ref={layoutFileRef} type='file' accept='.txt,.md' style={{display:'none'}}
+                  onChange={async e => { const f=e.target.files[0]; if(f){ const t=await f.text(); u('layoutText',t); u('layoutName',f.name); }}} />
+                <div style={{...C.row, marginBottom:8}}>
+                  <button type='button' style={C.btn('#4f46e5','#fff',true)} onClick={()=>layoutFileRef.current.click()}>📂 Carica file</button>
+                  {inputs.layoutText && <button type='button' style={C.btn('#fff5f5','#dc2626',true)} onClick={()=>{u('layoutText','');u('layoutName','');}}>🗑️ Rimuovi</button>}
+                </div>
+                {inputs.layoutName && (
+                  <div style={{fontSize:11,color:'#5b21b6',marginBottom:8,fontWeight:600}}>✅ {inputs.layoutName} — {inputs.layoutText?.length} caratteri</div>
+                )}
+                <textarea
+                  value={inputs.layoutText||''}
+                  onChange={e=>{u('layoutText',e.target.value);u('layoutName','');}}
+                  rows={6}
+                  placeholder={`Esempio:\n# INFORMATIVA PRIVACY\n\nArt. 1 — Titolare del Trattamento\n[NOME E DATI TITOLARE]\n\n| Finalità | Base giuridica | Retention |\n|----------|---------------|----------|\n| [FINALITÀ] | [BASE] | [PERIODO] |`}
+                  style={{...C.inp, resize:'vertical', minHeight:120, fontFamily:'"Courier New",monospace', fontSize:12, lineHeight:1.6, background:'#fff'}}
+                  onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                  onBlur={e=>e.target.style.borderColor='#a5b4fc'}
+                />
+              </div>
+            )}
+          </div>
 
           <button style={{...C.btn(dt.color,'#fff'),width:'100%',padding:'11px',fontSize:15,justifyContent:'center',opacity:generating?.7:1}} onClick={onGenerate} disabled={generating}>
             {generating?'⏳ Generazione in corso...':'✨ Genera con AI'}
