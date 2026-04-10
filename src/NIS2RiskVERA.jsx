@@ -166,96 +166,90 @@ function ProcessoForm({ initial, assets, onSave, onCancel }) {
   );
 }
 
-// ─── Tab Processi Critici ─────────────────────────────────────────────────────
+// ─── Tab Processi Critici (sincronizzati dalla BIA) ──────────────────────────
 
-function ProcessiTab({ processi, assets, onSave }) {
-  const [showForm, setShowForm] = useState(false);
-  const [editProc, setEditProc] = useState(null);
-  const [confirmDel, setConfirmDel] = useState(null);
+function ProcessiTab({ biaProcessi, ridConfig, assets, onSaveRid }) {
   const assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
-
-  const handleSave = p => {
-    const updated = editProc ? processi.map(x => x.id === p.id ? p : x) : [...processi, p];
-    onSave(updated);
-    setShowForm(false); setEditProc(null);
+  const ridColors = ['', '#16a34a', '#d97706', '#ea580c', '#dc2626'];
+  const RID_DESC = {
+    R: ['','Dati pubblici','Uso interno','Riservato','Strettamente riservato'],
+    I: ['','Non critica','Bassa criticità','Alta criticità','Vitale'],
+    D: ['','Indisponib. accettabile','Max qualche ora','Max qualche ora (SLA)','Disponibilità continua'],
   };
 
-  const ridColors = ['', '#16a34a', '#d97706', '#ea580c', '#dc2626'];
+  const setRid = (procId, key, val) => {
+    onSaveRid({ ...ridConfig, [procId]: { ...(ridConfig[procId] || {}), [key]: val } });
+  };
+
+  if (biaProcessi.length === 0) {
+    return (
+      <div style={{ ...C.card, textAlign: 'center', padding: '40px 24px' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a', marginBottom: 8 }}>
+          Nessun processo dalla BIA
+        </div>
+        <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
+          Aggiungi i processi critici nel tab <strong>BIA</strong> — compariranno automaticamente qui per la valutazione del rischio.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      {(showForm || editProc) && (
-        <ProcessoForm initial={editProc} assets={assets}
-          onSave={handleSave}
-          onCancel={() => { setShowForm(false); setEditProc(null); }} />
-      )}
-      <div style={{ ...C.row, justifyContent: 'space-between', marginBottom: 16 }}>
-        <SectionTitle>🏭 Processi Critici</SectionTitle>
-        <button style={C.btn('#0891b2', '#fff', true)} onClick={() => { setEditProc(null); setShowForm(true); }}>
-          + Aggiungi processo
-        </button>
+      <div style={{ background: '#f0f9ff', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#0c4a6e', lineHeight: 1.6, display: 'flex', gap: 10, alignItems: 'center' }}>
+        <span>🔗</span>
+        <span>
+          I processi sono sincronizzati dalla <strong>BIA</strong>. Configura qui i valori <strong>R · I · D</strong> specifici per il modello VERA 8 — determinano le conseguenze di ciascuna minaccia.
+        </span>
       </div>
 
-      {/* Info box */}
-      <div style={{ background: '#f0f9ff', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#0c4a6e', lineHeight: 1.6 }}>
-        <strong>Modello VERA 8</strong> — Censisci i processi critici e assegna i valori di <strong>Riservatezza (R)</strong>, <strong>Integrità (I)</strong> e <strong>Disponibilità (D)</strong> da 1 a 4.
-        Questi valori determinano le conseguenze di ciascuna minaccia nel calcolo del rischio.
-      </div>
-
-      {processi.length === 0 ? (
-        <EmptyState icon='🏭' title='Nessun processo critico'
-          sub="Aggiungi i processi critici dell'organizzazione per avviare l'analisi dei rischi."
-          onAction={() => { setEditProc(null); setShowForm(true); }} actionLabel='+ Aggiungi il primo processo' />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {processi.map(p => {
-            const linkedAssets = (p.assetIds || []).map(id => assetMap[id]).filter(Boolean);
-            const maxRID = Math.max(p.riservatezza || 1, p.integrita || 1, p.disponibilita || 1);
-            return (
-              <div key={p.id} style={{ ...C.card, padding: '16px', borderLeft: `4px solid ${ridColors[maxRID]}` }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>{p.nome}</span>
-                      {p.unitaOrganizzativa && <span style={{ fontSize: 11, background: '#f1f5f9', color: '#64748b', borderRadius: 6, padding: '2px 7px' }}>{p.unitaOrganizzativa}</span>}
-                    </div>
-                    {/* RID badges */}
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                      {[['R', p.riservatezza], ['I', p.integrita], ['D', p.disponibilita]].map(([k, v]) => (
-                        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, background: ridColors[v] + '18', borderRadius: 8, padding: '3px 10px' }}>
-                          <span style={{ fontWeight: 800, fontSize: 12, color: ridColors[v] }}>{k}</span>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: ridColors[v] }}>{v}</span>
-                          <span style={{ fontSize: 10, color: ridColors[v], opacity: .8 }}>
-                            {v === 1 ? 'Basso' : v === 2 ? 'Medio' : v === 3 ? 'Alto' : 'Critico'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#64748b', flexWrap: 'wrap' }}>
-                      {p.referente && <span>👤 {p.referente}</span>}
-                      {p.mtpd && <span>⏱️ MTPD: {p.mtpd}</span>}
-                      {linkedAssets.length > 0 && (
-                        <span>🖥️ Asset: {linkedAssets.map(a => a.nome).join(', ')}</span>
-                      )}
-                    </div>
-                    {p.note && <div style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>📝 {p.note}</div>}
-                  </div>
-                  <div style={{ ...C.row, flexShrink: 0 }}>
-                    <button style={C.btn('#f1f5f9', '#374151', true)} onClick={() => { setEditProc(p); setShowForm(true); }}>✏️</button>
-                    {confirmDel === p.id
-                      ? <>
-                        <button style={C.btn('#dc2626', '#fff', true)} onClick={() => { onSave(processi.filter(x => x.id !== p.id)); setConfirmDel(null); }}>Conferma</button>
-                        <button style={C.btn('#f1f5f9', '#374151', true)} onClick={() => setConfirmDel(null)}>✕</button>
-                      </>
-                      : <button style={C.btn('#fff5f5', '#dc2626', true)} onClick={() => setConfirmDel(p.id)}>🗑️</button>
-                    }
-                  </div>
-                </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {biaProcessi.map(p => {
+          const rid = ridConfig[p.id] || {};
+          const r = rid.riservatezza || 2;
+          const i = rid.integrita    || 2;
+          const d = rid.disponibilita|| 2;
+          const maxRID = Math.max(r, i, d);
+          const linkedAssets = (p.assetIds || []).map(id => assetMap[id]).filter(Boolean);
+          return (
+            <div key={p.id} style={{ ...C.card, padding: '16px', borderLeft: `4px solid ${ridColors[maxRID]}` }}>
+              {/* Nome + info */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>{p.nome}</span>
+                {p.unitaOrganizzativa && <span style={{ fontSize: 11, background: '#f1f5f9', color: '#64748b', borderRadius: 6, padding: '2px 7px' }}>{p.unitaOrganizzativa}</span>}
+                {p.priorita && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#eff6ff', color: '#0891b2' }}>{p.priorita}</span>}
+                {p.responsabile && <span style={{ fontSize: 11, color: '#94a3b8' }}>👤 {p.responsabile}</span>}
+                {p.rto && <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>RTO: {p.rto}</span>}
+                {linkedAssets.length > 0 && (
+                  <span style={{ fontSize: 11, color: '#64748b' }}>🖥️ {linkedAssets.map(a => a.nome).join(', ')}</span>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              {/* RID sliders */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0 20px' }}>
+                {[['riservatezza', 'R', 'Riservatezza'], ['integrita', 'I', 'Integrità'], ['disponibilita', 'D', 'Disponibilità']].map(([key, K, label]) => {
+                  const val = key === 'riservatezza' ? r : key === 'integrita' ? i : d;
+                  return (
+                    <div key={key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{K} — {label}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: ridColors[val] }}>{val}</span>
+                      </div>
+                      <input type='range' min={1} max={4} step={1} value={val}
+                        onChange={e => setRid(p.id, key, parseInt(e.target.value))}
+                        style={{ width: '100%', accentColor: ridColors[val] }} />
+                      <div style={{ fontSize: 10, color: ridColors[val], fontWeight: 600, marginTop: 2 }}>
+                        {RID_DESC[K][val]}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -675,27 +669,31 @@ function exportTrattamento(rows) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function NIS2RiskVERA({ riskData, onSave, assets, misure }) {
+export default function NIS2RiskVERA({ riskData, onSave, assets, misure, biaProcessi = [] }) {
   const [activeTab, setActiveTab] = useState('processi');
 
-  const data = riskData || { processi: [], valutazioni: {} };
-  const processi = data.processi || [];
+  const data = riskData || { valutazioni: {}, ridConfig: {} };
   const valutazioni = data.valutazioni || {};
+  const ridConfig   = data.ridConfig   || {};
 
-  const saveProcessi = newProcessi => {
-    onSave({ ...data, processi: newProcessi });
+  // Processi arricchiti: BIA + valori R/I/D da ridConfig
+  const processi = useMemo(() => biaProcessi.map(p => {
+    const rid = ridConfig[p.id] || {};
+    return {
+      ...p,
+      riservatezza:  rid.riservatezza  || 2,
+      integrita:     rid.integrita     || 2,
+      disponibilita: rid.disponibilita || 2,
+    };
+  }), [biaProcessi, ridConfig]);
+
+  const saveRidConfig = newRidConfig => {
+    onSave({ ...data, ridConfig: newRidConfig });
   };
 
   const updateVal = (procId, minacciaId, field, value) => {
     const k = vKey(procId, minacciaId);
-    const updated = {
-      ...data,
-      valutazioni: {
-        ...valutazioni,
-        [k]: { ...(valutazioni[k] || {}), [field]: value }
-      }
-    };
-    onSave(updated);
+    onSave({ ...data, valutazioni: { ...valutazioni, [k]: { ...(valutazioni[k] || {}), [field]: value } } });
   };
 
   const TABS = [
@@ -756,7 +754,7 @@ export default function NIS2RiskVERA({ riskData, onSave, assets, misure }) {
       </div>
 
       {activeTab === 'processi' && (
-        <ProcessiTab processi={processi} assets={assets} onSave={saveProcessi} />
+        <ProcessiTab biaProcessi={biaProcessi} ridConfig={ridConfig} assets={assets} onSaveRid={saveRidConfig} />
       )}
       {activeTab === 'valutazione' && (
         <ValutazioneTab processi={processi} valutazioni={valutazioni} allMisure={misure} onUpdateVal={updateVal} />

@@ -889,7 +889,7 @@ function NIS2Page({ client, onBack, gapData, onSaveGap, nis2Assets, onSaveNIS2As
 
       {/* Analisi Rischi VERA tab */}
       {activeTab==='rischio' && (
-        <NIS2RiskVERA riskData={nis2Risk} onSave={onSaveNIS2Risk} assets={nis2Assets} misure={nis2Misure}/>
+        <NIS2RiskVERA riskData={nis2Risk} onSave={onSaveNIS2Risk} assets={nis2Assets} misure={nis2Misure} biaProcessi={nis2BIA?.processi||[]}/>
       )}
 
       {/* Coming soon tabs */}
