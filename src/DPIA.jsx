@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { C, Fld, StatusBadge, EmptyState, SectionTitle, ACCENT } from './shared';
 import { TrattamentoSelector } from './AnalisiRischi';
+import { AICtx, useAIRecord } from './AIContext';
 
 const STATI = ['Bozza', 'Approvata', 'Da rivedere'];
 const STATO_COLOR = { Bozza: '#d97706', Approvata: '#16a34a', 'Da rivedere': '#dc2626' };
@@ -559,6 +560,7 @@ export default function DPIA({ trattamenti, dpia, misure = [], onSave }) {
   }, [f.prescreening]);
 
   const psIcon = prescreeningScore >= 2 ? '⚠️' : prescreeningScore === 1 ? '🔍' : '✅';
+  const aiCtx = useAIRecord({ recordName: tratt?.nome, sectionLabel: 'DPIA — Data Protection Impact Assessment' });
 
   if (!selId || !tratt) return (
     <div>
@@ -573,6 +575,7 @@ export default function DPIA({ trattamenti, dpia, misure = [], onSave }) {
   );
 
   return (
+    <AICtx.Provider value={aiCtx}>
     <div>
       <h3 style={{ margin: '0 0 16px', color: '#0f172a', fontSize: 16 }}>🔍 DPIA — Data Protection Impact Assessment</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20, alignItems: 'start' }}>
@@ -611,5 +614,6 @@ export default function DPIA({ trattamenti, dpia, misure = [], onSave }) {
         </div>
       </div>
     </div>
+    </AICtx.Provider>
   );
 }

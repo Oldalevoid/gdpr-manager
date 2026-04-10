@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT, BASI_GIURIDICHE, BASI_GIURIDICHE_ART9, STATI_TRATTAMENTO, TIPI_MISURA, STATI_MISURA, ART32_RIFERIMENTI } from './shared';
+import { AICtx, useAIRecord } from './AIContext';
 
 const STATO_COLOR = { Attivo:'#16a34a', Sospeso:'#d97706', Cessato:'#64748b' };
 const MISURA_COLOR = { Implementata:'#16a34a', 'In corso':'#d97706', Pianificata:'#2563eb' };
@@ -310,6 +311,7 @@ const EMPTY_T = { nome:'',funzioneAziendale:'',finalita:'',baseGiuridica:'',cate
 function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveFunzioni, onSave, onCancel }) {
   const [f, setF] = useState(initial || EMPTY_T);
   const [newFunz, setNewFunz] = useState('');
+  const aiCtx = useAIRecord({ recordName: f.nome, sectionLabel: 'Registro Trattamenti GDPR' });
   const [showAddFunz, setShowAddFunz] = useState(false);
   const u = (k,v) => setF(p=>({...p,[k]:v}));
 
@@ -342,6 +344,7 @@ function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveF
   };
 
   return (
+    <AICtx.Provider value={aiCtx}>
     <div>
       <div style={{...C.card,marginBottom:16}}>
         <SectionTitle>📋 Dati del Trattamento</SectionTitle>
@@ -499,6 +502,7 @@ function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveF
         <button style={C.btn('#f1f5f9','#374151')} onClick={onCancel}>Annulla</button>
       </div>
     </div>
+    </AICtx.Provider>
   );
 }
 

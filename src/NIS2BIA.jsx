@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT } from './shared';
 import * as XLSX from 'xlsx';
+import { AICtx, useAIRecord } from './AIContext';
 
 // ─── Costanti ─────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,7 @@ function ProcessoBIAForm({ initial, assets, onSave, onCancel }) {
   });
 
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const aiCtx = useAIRecord({ recordName: f.nome, sectionLabel: 'NIS2 — Business Impact Analysis' });
   const setImpatto = (fascia, asse, val) => setF(p => ({
     ...p,
     impatti: { ...p.impatti, [fascia]: { ...(p.impatti?.[fascia] || {}), [asse]: val } }
@@ -142,6 +144,7 @@ function ProcessoBIAForm({ initial, assets, onSave, onCancel }) {
   ];
 
   return (
+    <AICtx.Provider value={aiCtx}>
     <Modal onClose={onCancel} maxWidth={700}>
       <h3 style={{ margin: '0 0 16px', color: '#0f172a', fontSize: 16 }}>
         {initial ? '✏️ Modifica processo' : '➕ Nuovo processo BIA'}
@@ -275,6 +278,7 @@ function ProcessoBIAForm({ initial, assets, onSave, onCancel }) {
         <button style={C.btn('#f1f5f9', '#374151')} onClick={onCancel}>Annulla</button>
       </div>
     </Modal>
+    </AICtx.Provider>
   );
 }
 

@@ -98,6 +98,7 @@ export function Fld({id, label, type='text', val, onChange, ph, options, cols, c
   const buildPrompt = () => [
     aiCtx.clientName && `Azienda: ${aiCtx.clientName}`,
     aiCtx.sectionLabel && `Sezione: ${aiCtx.sectionLabel}`,
+    aiCtx.recordName && `Record corrente: ${aiCtx.recordName}`,
     ctx,
     ph && `Istruzioni campo: ${ph}`,
     `\nGenera il contenuto per il campo "${label}".`,

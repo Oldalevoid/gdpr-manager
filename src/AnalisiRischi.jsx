@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT } from './shared';
+import { AICtx, useAIRecord } from './AIContext';
 
 const PROB_LABELS = ['','Bassa','Media','Alta','Molto Alta'];
 const IMP_LABELS  = ['','Trascurabile','Moderato','Significativo','Grave'];
@@ -10,6 +11,7 @@ export function ScenarioForm({ initial, onSave, onCancel, misure = [] }) {
   const empty = { minaccia:'', vulnerabilita:'', probabilita:1, impatto:1, misureIds:[], misureMitigazione:'', rischioResiduo:1 };
   const [f, setF] = useState(initial || empty);
   const u = (k,v) => setF(p=>({...p,[k]:v}));
+  const aiCtx = useAIRecord({ recordName: f.minaccia, sectionLabel: 'Analisi dei Rischi GDPR' });
   const rischio = f.probabilita * f.impatto;
 
   const toggleMisura = id => {
@@ -21,6 +23,7 @@ export function ScenarioForm({ initial, onSave, onCancel, misure = [] }) {
   const statCol = s => s==='Implementata'?'#16a34a':s==='In corso'?'#d97706':s==='Pianificata'?'#2563eb':'#94a3b8';
 
   return (
+    <AICtx.Provider value={aiCtx}>
     <Modal onClose={onCancel} maxWidth={640}>
       <h3 style={{margin:'0 0 18px',color:'#0f172a'}}>{initial?'✏️ Modifica scenario':'➕ Nuovo scenario di rischio'}</h3>
       <Fld id='minaccia' label='Minaccia *' val={f.minaccia} onChange={u} ph='es. Accesso non autorizzato, Perdita dati...'/>
@@ -89,6 +92,7 @@ export function ScenarioForm({ initial, onSave, onCancel, misure = [] }) {
         <button style={C.btn('#f1f5f9','#374151')} onClick={onCancel}>Annulla</button>
       </div>
     </Modal>
+    </AICtx.Provider>
   );
 }
 
