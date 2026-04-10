@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { useAICtx } from './AIContext';
+import { isAIEnabled, generateFieldContent } from './aiHelper';
+
 export const PRIMARY = '#1a3a5c';
 export const ACCENT  = '#2563eb';
 
@@ -9,22 +13,64 @@ export const C = {
   row:  {display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'},
 };
 
-export function Fld({id,label,type='text',val,onChange,ph,options,cols}) {
-  const fo = e=>e.target.style.borderColor=ACCENT;
-  const bl = e=>e.target.style.borderColor='#dde3ec';
+export function Fld({id, label, type='text', val, onChange, ph, options, cols, ctx=''}) {
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiCtx = useAICtx();
+
+  const fo = e => e.target.style.borderColor = ACCENT;
+  const bl = e => e.target.style.borderColor = '#dde3ec';
   const wrap = child => (
     <div style={{marginBottom:14,gridColumn:cols?`span ${cols}`:undefined}}>{child}</div>
   );
-  if(options) return wrap(<>
+
+  const canAI = isAIEnabled && (type === 'textarea' || type === 'text');
+
+  const handleAI = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    let buf = '';
+    try {
+      const context = [
+        aiCtx.clientName && `Azienda: ${aiCtx.clientName}`,
+        aiCtx.sectionLabel && `Sezione: ${aiCtx.sectionLabel}`,
+        ctx,
+      ].filter(Boolean).join(' | ');
+      await generateFieldContent(label, ph, context, chunk => {
+        buf += chunk;
+        onChange(id, buf);
+      });
+    } catch (e) {
+      console.error('AI generation error:', e);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const AIBtn = canAI && (
+    <button type='button' onClick={handleAI} disabled={aiLoading} title='Genera con IA'
+      style={{
+        border: 'none', cursor: aiLoading ? 'wait' : 'pointer',
+        background: aiLoading ? '#e0e7ff' : '#6366f1',
+        color: '#fff', borderRadius: 5, padding: '1px 8px', fontSize: 10,
+        fontWeight: 700, fontFamily: 'inherit', marginLeft: 7,
+        opacity: aiLoading ? 0.75 : 1, verticalAlign: 'middle',
+        display: 'inline-flex', alignItems: 'center', gap: 3, lineHeight: '1.7',
+      }}>
+      {aiLoading ? '⏳' : '✨'} {aiLoading ? 'Generando...' : 'IA'}
+    </button>
+  );
+
+  if (options) return wrap(<>
     <label style={C.lbl}>{label}</label>
     <select value={val||''} onChange={e=>onChange(id,e.target.value)} style={C.inp} onFocus={fo} onBlur={bl}>
       <option value=''>Seleziona...</option>
       {options.map(o=><option key={o} value={o}>{o}</option>)}
     </select>
   </>);
-  const Tag = type==='textarea' ? 'textarea' : 'input';
+
+  const Tag = type === 'textarea' ? 'textarea' : 'input';
   return wrap(<>
-    <label style={C.lbl}>{label}</label>
+    <label style={C.lbl}>{label}{AIBtn}</label>
     <Tag value={val||''} onChange={e=>onChange(id,e.target.value)} placeholder={ph}
       rows={type==='textarea'?3:undefined} type={type==='date'?'date':undefined}
       style={{...C.inp,resize:type==='textarea'?'vertical':undefined,minHeight:type==='textarea'?68:undefined}}

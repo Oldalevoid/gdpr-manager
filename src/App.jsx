@@ -11,6 +11,7 @@ import NIS2RiskVERA from './NIS2RiskVERA';
 import NIS2BIA from './NIS2BIA';
 import Login from './Login';
 import { filterClientsForUser, canCreateClient, canDeleteClient } from './auth';
+import { AICtx } from './AIContext';
 
 const PRIMARY = '#1a3a5c';
 const ACCENT = '#2563eb';
@@ -1449,6 +1450,7 @@ export default function App() {
       </nav>
 
       {/* MAIN CONTENT */}
+      <AICtx.Provider value={{ clientName: selClient?.ragioneSociale || '' }}>
       <div style={{maxWidth:1200,margin:'0 auto',padding:'28px 20px'}}>
         {page==='dashboard'&&(
           <Dashboard
@@ -1565,6 +1567,7 @@ export default function App() {
           />
         )}
       </div>
+      </AICtx.Provider>
 
       {/* MODALS */}
       {settingsDt&&(
