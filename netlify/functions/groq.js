@@ -3,13 +3,15 @@ export default async (req) => {
   const targetPath = url.pathname.replace(/^\/api\/groq/, '');
   const targetUrl = `https://api.groq.com${targetPath}${url.search}`;
 
+  const body = req.method !== 'GET' ? await req.text() : undefined;
+
   const response = await fetch(targetUrl, {
     method: req.method,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
     },
-    body: req.method !== 'GET' ? req.body : undefined,
+    body,
   });
 
   return new Response(response.body, {

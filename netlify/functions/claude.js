@@ -3,6 +3,8 @@ export default async (req) => {
   const targetPath = url.pathname.replace(/^\/api\/claude/, '');
   const targetUrl = `https://api.anthropic.com${targetPath}${url.search}`;
 
+  const body = req.method !== 'GET' ? await req.text() : undefined;
+
   const response = await fetch(targetUrl, {
     method: req.method,
     headers: {
@@ -10,7 +12,7 @@ export default async (req) => {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
     },
-    body: req.method !== 'GET' ? req.body : undefined,
+    body,
   });
 
   return new Response(response.body, {
