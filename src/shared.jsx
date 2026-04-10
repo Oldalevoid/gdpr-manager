@@ -13,17 +13,32 @@ export const C = {
   row:  {display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'},
 };
 
-function AIModal({ label, initialPrompt, onApply, onClose }) {
+function AIModal({ label, initialPrompt, trattamenti = [], onApply, onClose }) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selTratt, setSelTratt] = useState([]);
+
+  const toggleTratt = id => setSelTratt(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+  const buildFinalPrompt = () => {
+    let p = prompt;
+    if (selTratt.length > 0) {
+      const chosen = trattamenti.filter(t => selTratt.includes(t.id));
+      const lines = chosen.map(t =>
+        `- ${t.nome}${t.finalita ? `: ${t.finalita}` : ''}${t.baseGiuridica ? ` (Base: ${t.baseGiuridica})` : ''}${t.categorieDati ? `, Dati: ${t.categorieDati}` : ''}${t.categorieInteressati ? `, Interessati: ${t.categorieInteressati}` : ''}`
+      ).join('\n');
+      p += `\n\nTRATTAMENTI RILEVANTI DAL REGISTRO:\n${lines}`;
+    }
+    return p;
+  };
 
   const generate = async () => {
     setPreview('');
     setLoading(true);
     let buf = '';
     try {
-      await generateFieldContent(label, '', prompt, chunk => {
+      await generateFieldContent(label, '', buildFinalPrompt(), chunk => {
         buf += chunk;
         setPreview(buf);
       });
@@ -37,7 +52,7 @@ function AIModal({ label, initialPrompt, onApply, onClose }) {
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{background:'#fff',borderRadius:14,padding:28,width:'100%',maxWidth:560,boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
+      <div style={{background:'#fff',borderRadius:14,padding:28,width:'100%',maxWidth:580,maxHeight:'90vh',overflow:'auto',boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
           <span style={{fontSize:20}}>✨</span>
           <div style={{flex:1}}>
@@ -46,6 +61,28 @@ function AIModal({ label, initialPrompt, onApply, onClose }) {
           </div>
           <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#94a3b8',lineHeight:1}}>✕</button>
         </div>
+
+        {trattamenti.length > 0 && (
+          <div style={{marginBottom:14}}>
+            <label style={C.lbl}>📋 Trattamenti da includere nel contesto (opzionale)</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:4}}>
+              {trattamenti.map(t => {
+                const sel = selTratt.includes(t.id);
+                return (
+                  <button key={t.id} type='button' onClick={() => toggleTratt(t.id)}
+                    style={{...C.btn(sel ? '#6366f1' : '#f1f5f9', sel ? '#fff' : '#374151', true), borderRadius:16, border:`1.5px solid ${sel ? '#6366f1' : '#e2e8f0'}`}}>
+                    {sel ? '✓ ' : ''}{t.nome}
+                  </button>
+                );
+              })}
+            </div>
+            {selTratt.length > 0 && (
+              <div style={{fontSize:11,color:'#6366f1',marginTop:5,fontWeight:600}}>
+                ✓ {selTratt.length} trattament{selTratt.length !== 1 ? 'i' : 'o'} selezionat{selTratt.length !== 1 ? 'i' : 'o'} — verranno aggiunti al prompt
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{marginBottom:14}}>
           <label style={C.lbl}>Prompt — modifica per personalizzare il risultato</label>
@@ -130,6 +167,7 @@ export function Fld({id, label, type='text', val, onChange, ph, options, cols, c
       <AIModal
         label={label}
         initialPrompt={buildPrompt()}
+        trattamenti={aiCtx.trattamenti || []}
         onApply={v => onChange(id, v)}
         onClose={() => setShowAI(false)}
       />

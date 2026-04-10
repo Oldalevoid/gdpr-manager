@@ -4,7 +4,8 @@ import { createContext, useContext } from 'react';
 // clientName: ragione sociale del cliente selezionato
 // sectionLabel: sezione/modulo corrente (es. "Registro Trattamenti")
 // recordName: nome del record in editing (es. "Rapporto con i clienti")
-export const AICtx = createContext({ clientName: '', sectionLabel: '', recordName: '' });
+// trattamenti: array of treatment objects available for AI context selection
+export const AICtx = createContext({ clientName: '', sectionLabel: '', recordName: '', trattamenti: [] });
 export const useAICtx = () => useContext(AICtx);
 
 // Helper: merge context keeping parent values, override with provided ones

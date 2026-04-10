@@ -1450,7 +1450,7 @@ export default function App() {
       </nav>
 
       {/* MAIN CONTENT */}
-      <AICtx.Provider value={{ clientName: selClient?.ragioneSociale || '' }}>
+      <AICtx.Provider value={{ clientName: selClient?.ragioneSociale || '', trattamenti: clientTrattamenti || [] }}>
       <div style={{maxWidth:1200,margin:'0 auto',padding:'28px 20px'}}>
         {page==='dashboard'&&(
           <Dashboard
