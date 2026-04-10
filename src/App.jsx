@@ -1076,7 +1076,7 @@ export default function App() {
   const [loading,setLoading]=useState(true);
   const [copied,setCopied]=useState(false);
   const [error,setError]=useState(null);
-  const [apiKey,setApiKey]=useState(()=>localStorage.getItem('gdpr:groqKey')||'');
+  const [apiKey,setApiKey]=useState(()=>localStorage.getItem('gdpr:groqKey')||import.meta.env.VITE_GROQ_API_KEY||'');
   const [showApiKey,setShowApiKey]=useState(false);
 
   useEffect(()=>{
