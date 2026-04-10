@@ -98,4 +98,10 @@ CREATE TABLE public.trattamenti (
   data jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT trattamenti_pkey PRIMARY KEY (id)
+);CREATE TABLE public.nis2_bia (
+  client_id text NOT NULL,
+  data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT nis2_bia_pkey PRIMARY KEY (client_id),
+  CONSTRAINT nis2_bia_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
 );

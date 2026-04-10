@@ -8,6 +8,7 @@ import DataBreaches from './DataBreaches';
 import NIS2GapAnalysis from './NIS2GapAnalysis';
 import { NIS2Assets, NIS2Misure } from './NIS2AssetsMisure';
 import NIS2RiskVERA from './NIS2RiskVERA';
+import NIS2BIA from './NIS2BIA';
 import Login from './Login';
 import { filterClientsForUser, canCreateClient, canDeleteClient } from './auth';
 
@@ -816,11 +817,12 @@ function ModuleSelector({ client, onSelect }) {
 }
 
 // ---- NIS2 PAGE ----
-function NIS2Page({ client, onBack, gapData, onSaveGap, nis2Assets, onSaveNIS2Assets, nis2Misure, onSaveNIS2Misure, nis2Risk, onSaveNIS2Risk }) {
+function NIS2Page({ client, onBack, gapData, onSaveGap, nis2Assets, onSaveNIS2Assets, nis2Misure, onSaveNIS2Misure, nis2Risk, onSaveNIS2Risk, nis2BIA, onSaveNIS2BIA }) {
   const TABS = [
     { id:'gap',       icon:'📊', label:'Gap Analysis' },
     { id:'assets',    icon:'🖥️', label:'Asset Critici' },
     { id:'misure',    icon:'🔒', label:'Misure Art.21' },
+    { id:'bia',       icon:'📈', label:'BIA' },
     { id:'rischio',   icon:'⚠️', label:'Analisi Rischi' },
     { id:'incidenti', icon:'🚨', label:'Incidenti' },
     { id:'fornitori', icon:'🏭', label:'Supply Chain' },
@@ -880,13 +882,18 @@ function NIS2Page({ client, onBack, gapData, onSaveGap, nis2Assets, onSaveNIS2As
         <NIS2Misure misure={nis2Misure} assets={nis2Assets} onSave={onSaveNIS2Misure}/>
       )}
 
+      {/* BIA tab */}
+      {activeTab==='bia' && (
+        <NIS2BIA biaData={nis2BIA} onSave={onSaveNIS2BIA} assets={nis2Assets}/>
+      )}
+
       {/* Analisi Rischi VERA tab */}
       {activeTab==='rischio' && (
         <NIS2RiskVERA riskData={nis2Risk} onSave={onSaveNIS2Risk} assets={nis2Assets} misure={nis2Misure}/>
       )}
 
       {/* Coming soon tabs */}
-      {!['gap','assets','misure','rischio'].includes(activeTab) && COMING_SOON.filter(x=>x.id===activeTab).map(s=>(
+      {!['gap','assets','misure','bia','rischio'].includes(activeTab) && COMING_SOON.filter(x=>x.id===activeTab).map(s=>(
         <div key={s.id} style={{background:'#fff',borderRadius:12,padding:40,border:'1px solid #e5eaf0',textAlign:'center'}}>
           <div style={{fontSize:48,marginBottom:16}}>{s.icon}</div>
           <div style={{fontWeight:700,fontSize:18,color:'#0f172a',marginBottom:8}}>{s.label}</div>
@@ -1063,6 +1070,7 @@ export default function App() {
   const [clientNIS2Assets,setClientNIS2Assets]=useState([]);
   const [clientNIS2Misure,setClientNIS2Misure]=useState([]);
   const [clientNIS2Risk,setClientNIS2Risk]=useState({});
+  const [clientNIS2BIA,setClientNIS2BIA]=useState({});
   const [docSettings,setDocSettings]=useState({});
   const [selDt,setSelDt]=useState(null);
   const [settingsDt,setSettingsDt]=useState(null);
@@ -1110,7 +1118,8 @@ export default function App() {
       { data: trattRows },{ data: misureRows },{ data: analisiRows },
       { data: dpiaRows },{ data: liaRows },{ data: breachRows },
       { data: nis2Rows },{ data: nis2AssetRows },{ data: nis2MisureRows },
-      { data: nis2RiskRow }
+      { data: nis2RiskRow },
+      { data: nis2BIARow }
     ] = await Promise.all([
       supabase.from('documents').select('*').eq('client_id',c.id).order('created_at'),
       supabase.from('assets').select('*').eq('client_id',c.id),
@@ -1125,6 +1134,7 @@ export default function App() {
       supabase.from('nis2_assets').select('*').eq('client_id',c.id).order('created_at'),
       supabase.from('nis2_misure').select('*').eq('client_id',c.id).order('created_at'),
       supabase.from('nis2_risk_vera').select('*').eq('client_id',c.id).maybeSingle(),
+      supabase.from('nis2_bia').select('*').eq('client_id',c.id).maybeSingle(),
     ]);
     setClientDocs((docRows||[]).map(r=>({id:r.id,tipo:r.tipo,label:r.label,contenuto:r.contenuto,createdAt:r.created_at})));
     setClientAssets((assetRows||[]).map(r=>({...r.data,id:r.id})));
@@ -1139,6 +1149,7 @@ export default function App() {
     setClientNIS2Assets((nis2AssetRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
     setClientNIS2Misure((nis2MisureRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
     setClientNIS2Risk(nis2RiskRow?.data||{});
+    setClientNIS2BIA(nis2BIARow?.data||{});
   };
   const saveDocs=async(arr,cid=selClient.id)=>{
     setClientDocs(arr);
@@ -1222,6 +1233,10 @@ export default function App() {
   const saveNIS2Risk=async riskData=>{
     setClientNIS2Risk(riskData);
     await supabase.from('nis2_risk_vera').upsert({client_id:selClient.id,data:riskData,updated_at:new Date().toISOString()},{onConflict:'client_id'});
+  };
+  const saveNIS2BIA=async biaData=>{
+    setClientNIS2BIA(biaData);
+    await supabase.from('nis2_bia').upsert({client_id:selClient.id,data:biaData,updated_at:new Date().toISOString()},{onConflict:'client_id'});
   };
 
   const saveFunzioni = async arr => {
@@ -1469,7 +1484,8 @@ export default function App() {
             gapData={clientNIS2Gap} onSaveGap={saveNIS2Gap}
             nis2Assets={clientNIS2Assets} onSaveNIS2Assets={saveNIS2Assets}
             nis2Misure={clientNIS2Misure} onSaveNIS2Misure={saveNIS2Misure}
-            nis2Risk={clientNIS2Risk} onSaveNIS2Risk={saveNIS2Risk}/>
+            nis2Risk={clientNIS2Risk} onSaveNIS2Risk={saveNIS2Risk}
+            nis2BIA={clientNIS2BIA} onSaveNIS2BIA={saveNIS2BIA}/>
         )}
         {page==='aiact'&&selClient&&(
           <AIActPage client={selClient} onBack={()=>setPage('modules')}/>
