@@ -5,6 +5,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/claude/*"
+  to = "https://api.anthropic.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

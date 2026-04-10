@@ -10,6 +10,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api\/groq/, ''),
       },
+      '/api/claude': {
+        target: 'https://api.anthropic.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/claude/, ''),
+      },
     },
   },
 })

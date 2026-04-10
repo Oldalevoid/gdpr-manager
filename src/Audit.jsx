@@ -135,7 +135,7 @@ function formatInline(text) {
   return parts.length > 0 ? parts : text;
 }
 
-export default function Audit({ client, apiKey }) {
+export default function Audit({ client, apiKey, aiProvider, claudeKey }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,27 +148,45 @@ export default function Audit({ client, apiKey }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const effectiveKey = apiKey || import.meta.env.VITE_GROQ_API_KEY;
+  const provider = aiProvider || localStorage.getItem('gdpr:aiProvider') || 'groq';
+  const effectiveGroqKey = apiKey || localStorage.getItem('gdpr:groqKey') || import.meta.env.VITE_GROQ_API_KEY;
+  const effectiveClaudeKey = claudeKey || localStorage.getItem('gdpr:claudeKey') || '';
 
   const callFacilitator = async (msgs) => {
     const systemContent = AUDIT_SYSTEM + (client ? `\n\nCONTESTO AZIENDA: ${client.ragioneSociale}${client.settore ? `, settore: ${client.settore}` : ''}` : '');
-    const r = await fetch('/api/groq/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${effectiveKey}` },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 2000,
-        temperature: 0.35,
-        messages: [{ role: 'system', content: systemContent }, ...msgs],
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore API');
-    return data.choices?.[0]?.message?.content?.trim() || '';
+    if (provider === 'claude' && effectiveClaudeKey) {
+      const r = await fetch('/api/claude/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': effectiveClaudeKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-opus-4-6',
+          max_tokens: 2000,
+          system: systemContent,
+          messages: msgs,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore Claude API');
+      return data.content?.[0]?.text?.trim() || '';
+    } else {
+      const r = await fetch('/api/groq/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${effectiveGroqKey}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 2000,
+          temperature: 0.35,
+          messages: [{ role: 'system', content: systemContent }, ...msgs],
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore API');
+      return data.choices?.[0]?.message?.content?.trim() || '';
+    }
   };
 
   const startSession = async () => {
-    if (!effectiveKey) { alert('API Key non configurata.'); return; }
+    if (!(provider === 'claude' ? effectiveClaudeKey : effectiveGroqKey)) { alert('API Key non configurata.'); return; }
     setStarted(true);
     setLoading(true);
     try {
