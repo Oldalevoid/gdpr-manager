@@ -553,7 +553,7 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,useRegistro,setUseRegistro,hasRegistro,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
@@ -572,7 +572,6 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
               <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
                 {s.templateText&&<span style={{fontSize:10,background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'2px 6px',borderRadius:20}}>📄 Template attivo</span>}
                 {s.systemPrompt&&s.systemPrompt!==DEFAULT_SYSTEM(dt.label)&&<span style={{fontSize:10,background:'#eff6ff',color:ACCENT,fontWeight:700,padding:'2px 6px',borderRadius:20}}>⚙️ Prompt custom</span>}
-                {useRegistro&&<span style={{fontSize:10,background:'#fef9c3',color:'#92400e',fontWeight:700,padding:'2px 6px',borderRadius:20}}>📋 Registro incluso</span>}
                 <span style={{fontSize:10,background:'#f8fafc',color:'#64748b',padding:'2px 6px',borderRadius:20}}>temp: {s.temperature??DEFAULT_PARAMS.temperature} · max: {(s.maxTokens??DEFAULT_PARAMS.maxTokens).toLocaleString('it-IT')} tok</span>
               </div>
             </div>
@@ -653,16 +652,6 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,e
             <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Istruzioni extra che si sommano ai campi compilati sopra — non sostituisce il system prompt.</div>
           </div>
 
-          {/* Usa dati dal Registro */}
-          {hasRegistro&&(
-            <div style={{marginBottom:16,padding:'10px 14px',background:'#fefce8',borderRadius:8,border:'1px solid #fde68a',display:'flex',alignItems:'center',gap:10}}>
-              <input type='checkbox' id='useReg' checked={useRegistro} onChange={e=>setUseRegistro(e.target.checked)} style={{width:16,height:16,accentColor:'#d97706',flexShrink:0}}/>
-              <label htmlFor='useReg' style={{fontSize:13,color:'#78350f',cursor:'pointer',lineHeight:1.4}}>
-                <strong>📋 Includi dati dal Registro dei Trattamenti</strong><br/>
-                <span style={{fontSize:11,fontWeight:400}}>I trattamenti, asset, fornitori e misure già inseriti vengono aggiunti al contesto.</span>
-              </label>
-            </div>
-          )}
 
           <button style={{...C.btn(dt.color,'#fff'),width:'100%',padding:'11px',fontSize:15,justifyContent:'center',opacity:generating?.7:1}} onClick={onGenerate} disabled={generating}>
             {generating?'⏳ Generazione in corso...':'✨ Genera con AI'}
@@ -1080,7 +1069,6 @@ export default function App() {
   const [genDoc,setGenDoc]=useState(null);
   const [autoSaved,setAutoSaved]=useState(false);
   const [extraPrompt,setExtraPrompt]=useState('');
-  const [useRegistro,setUseRegistro]=useState(false);
   const [chatHistory,setChatHistory]=useState([]); // [{role,content}]
   const [followUpPrompt,setFollowUpPrompt]=useState('');
   const [followingUp,setFollowingUp]=useState(false);
@@ -1273,19 +1261,6 @@ export default function App() {
   }
 
 
-  function buildRegistroContext() {
-    if(!useRegistro || !clientTrattamenti.length) return '';
-    const assetObj = Object.fromEntries(clientAssets.map(a=>[a.id,a]));
-    const suppObj  = Object.fromEntries(clientSuppliers.map(s=>[s.id,s]));
-    const misuraObj= Object.fromEntries(clientMisure.map(m=>[m.id,m]));
-    const lines = clientTrattamenti.map(t=>{
-      const assets = (t.assetIds||[]).map(id=>assetObj[id]?.nome).filter(Boolean).join(', ');
-      const supps  = (t.supplierIds||[]).map(id=>suppObj[id]?.nome).filter(Boolean).join(', ');
-      const misure = Object.values(t.misurePerAsset||{}).flat().map(id=>misuraObj[id]?.nome).filter(Boolean).join(', ');
-      return `- ${t.nome} | Base: ${t.baseGiuridica} | Dati: ${t.categorieDati||'—'} | Interessati: ${t.categorieInteressati||'—'} | Retention: ${t.retention||'—'} | Asset: ${assets||'—'} | Fornitori: ${supps||'—'} | Misure: ${misure||'—'}`;
-    });
-    return `\n\nREGISTRO DEI TRATTAMENTI (usa questi dati per arricchire il documento):\n${lines.join('\n')}`;
-  }
 
   async function callGroq(messages, maxTokens, temperature) {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1310,7 +1285,6 @@ export default function App() {
     const maxTokens    = s.maxTokens ?? DEFAULT_PARAMS.maxTokens;
     try {
       let userContent = buildPrompt(selDt.id, selClient, inputs, s, clientAssets, clientSuppliers);
-      userContent += buildRegistroContext();
       if(extraPrompt.trim()) userContent += `\n\nINSTRUZIONI AGGIUNTIVE:\n${extraPrompt.trim()}`;
       const messages = [
         {role:'system', content: systemPrompt},
@@ -1545,9 +1519,6 @@ export default function App() {
             onOpenSettings={dt=>setSettingsDt(dt)}
             extraPrompt={extraPrompt}
             setExtraPrompt={setExtraPrompt}
-            useRegistro={useRegistro}
-            setUseRegistro={setUseRegistro}
-            hasRegistro={clientTrattamenti.length>0}
             chatHistory={chatHistory}
             followUpPrompt={followUpPrompt}
             setFollowUpPrompt={setFollowUpPrompt}
