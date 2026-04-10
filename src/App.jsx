@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import mammoth from 'mammoth';
 import { supabase } from './supabase';
 import RegistroTrattamenti from './RegistroTrattamenti';
 import AnalisiRischi from './AnalisiRischi';
@@ -876,7 +877,39 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,o
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
   const [editMode, setEditMode] = useState(false);
   const [showLayout, setShowLayout] = useState(!!(inputs.layoutText));
+  const [extractingLayout, setExtractingLayout] = useState(false);
   const layoutFileRef = useRef();
+
+  const extractLayoutFromDocx = async (file) => {
+    setExtractingLayout(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const rawText = result.value;
+
+      // Ask AI to extract structure/layout with placeholders
+      const res = await fetch('/api/groq/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey || import.meta.env.VITE_GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 4000,
+          temperature: 0.1,
+          messages: [
+            { role: 'system', content: 'Sei un esperto nel riconoscere la struttura di documenti legali italiani.' },
+            { role: 'user', content: `Analizza il documento seguente ed estrai SOLO la struttura/layout per usarla come template.\n\nREGOLE:\n- Mantieni TUTTI i titoli, intestazioni, numerazioni (Art. 1, Art. 2...), etichette\n- Sostituisci il testo specifico del cliente/documento con segnaposto descrittivi tra parentesi quadre, es: [RAGIONE SOCIALE], [FINALITÀ DEL TRATTAMENTO], [PERIODO DI CONSERVAZIONE]\n- Se ci sono tabelle, riproducile in formato markdown con | colonne | e mantieni le intestazioni originali, sostituendo i valori con [CONTENUTO]\n- Mantieni la struttura gerarchica esatta\n- NON aggiungere contenuto nuovo, solo preserva la struttura\n\nDOCUMENTO:\n${rawText.slice(0, 8000)}` }
+          ]
+        })
+      });
+      const data = await res.json();
+      const layout = data.choices?.[0]?.message?.content?.trim();
+      if (layout) { u('layoutText', layout); u('layoutName', file.name); }
+    } catch(e) {
+      alert('Errore estrazione layout: ' + e.message);
+    } finally {
+      setExtractingLayout(false);
+    }
+  };
   return (
     <div>
       <button style={{...C.btn('#f1f5f9','#374151',true),marginBottom:16}} onClick={onBack}>← Indietro</button>
@@ -987,14 +1020,34 @@ function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,o
                 <div style={{fontSize:12,color:'#5b21b6',marginBottom:10,lineHeight:1.5}}>
                   Incolla o carica il tuo layout (testo, tabelle markdown <code style={{background:'#ede9fe',padding:'1px 4px',borderRadius:4}}>| Col | Col |</code>, segnaposto come <code style={{background:'#ede9fe',padding:'1px 4px',borderRadius:4}}>[TESTO DA COMPILARE]</code>). L'AI manterrà la struttura e le tabelle esatte.
                 </div>
-                <input ref={layoutFileRef} type='file' accept='.txt,.md' style={{display:'none'}}
-                  onChange={async e => { const f=e.target.files[0]; if(f){ const t=await f.text(); u('layoutText',t); u('layoutName',f.name); }}} />
+                <input ref={layoutFileRef} type='file' accept='.txt,.md,.docx' style={{display:'none'}}
+                  onChange={async e => {
+                    const f = e.target.files[0];
+                    if (!f) return;
+                    if (f.name.endsWith('.docx')) {
+                      await extractLayoutFromDocx(f);
+                    } else {
+                      const t = await f.text();
+                      u('layoutText', t); u('layoutName', f.name);
+                    }
+                    e.target.value = '';
+                  }} />
                 <div style={{...C.row, marginBottom:8}}>
-                  <button type='button' style={C.btn('#4f46e5','#fff',true)} onClick={()=>layoutFileRef.current.click()}>📂 Carica file</button>
-                  {inputs.layoutText && <button type='button' style={C.btn('#fff5f5','#dc2626',true)} onClick={()=>{u('layoutText','');u('layoutName','');}}>🗑️ Rimuovi</button>}
+                  <button type='button' style={C.btn('#4f46e5','#fff',true)} onClick={()=>layoutFileRef.current.click()}
+                    disabled={extractingLayout}>
+                    {extractingLayout ? '⏳ Estrazione in corso...' : '📂 Carica file (.txt / .docx)'}
+                  </button>
+                  {inputs.layoutText && !extractingLayout && (
+                    <button type='button' style={C.btn('#fff5f5','#dc2626',true)} onClick={()=>{u('layoutText','');u('layoutName','');}}>🗑️ Rimuovi</button>
+                  )}
                 </div>
-                {inputs.layoutName && (
-                  <div style={{fontSize:11,color:'#5b21b6',marginBottom:8,fontWeight:600}}>✅ {inputs.layoutName} — {inputs.layoutText?.length} caratteri</div>
+                {extractingLayout && (
+                  <div style={{fontSize:12,color:'#5b21b6',marginBottom:8,padding:'8px 12px',background:'#ede9fe',borderRadius:8}}>
+                    ✨ L'AI sta analizzando la struttura del documento .docx...
+                  </div>
+                )}
+                {inputs.layoutName && !extractingLayout && (
+                  <div style={{fontSize:11,color:'#5b21b6',marginBottom:8,fontWeight:600}}>✅ {inputs.layoutName} — {inputs.layoutText?.length} caratteri estratti</div>
                 )}
                 <textarea
                   value={inputs.layoutText||''}
