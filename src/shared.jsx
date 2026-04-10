@@ -13,8 +13,78 @@ export const C = {
   row:  {display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'},
 };
 
+function AIModal({ label, initialPrompt, onApply, onClose }) {
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [preview, setPreview] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const generate = async () => {
+    setPreview('');
+    setLoading(true);
+    let buf = '';
+    try {
+      await generateFieldContent(label, '', prompt, chunk => {
+        buf += chunk;
+        setPreview(buf);
+      });
+    } catch (e) {
+      setPreview('❌ Errore: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{background:'#fff',borderRadius:14,padding:28,width:'100%',maxWidth:560,boxShadow:'0 8px 40px rgba(0,0,0,0.18)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+          <span style={{fontSize:20}}>✨</span>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:15,color:'#0f172a'}}>Genera con IA</div>
+            <div style={{fontSize:12,color:'#64748b',marginTop:1}}>Campo: <strong>{label}</strong></div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#94a3b8',lineHeight:1}}>✕</button>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={C.lbl}>Prompt — modifica per personalizzare il risultato</label>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4}
+            style={{...C.inp, resize:'vertical', minHeight:80, fontSize:13}}
+            onFocus={e => e.target.style.borderColor='#6366f1'}
+            onBlur={e => e.target.style.borderColor='#dde3ec'} />
+        </div>
+
+        <button onClick={generate} disabled={loading}
+          style={{...C.btn('#6366f1','#fff'), marginBottom:16, opacity: loading ? 0.7 : 1, cursor: loading ? 'wait' : 'pointer'}}>
+          {loading ? '⏳ Generando...' : '✨ Genera'}
+        </button>
+
+        {preview && (
+          <div style={{marginBottom:16}}>
+            <label style={C.lbl}>Anteprima</label>
+            <div style={{background:'#f8fafc',border:'1.5px solid #6366f1',borderRadius:8,padding:'10px 14px',fontSize:14,color:'#0f172a',lineHeight:1.6,minHeight:60,whiteSpace:'pre-wrap'}}>
+              {preview}
+              {loading && <span style={{color:'#6366f1'}}>▌</span>}
+            </div>
+          </div>
+        )}
+
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          <button onClick={onClose} style={C.btn('#f1f5f9','#374151')}>Annulla</button>
+          {preview && !loading && (
+            <button onClick={() => { onApply(preview); onClose(); }} style={C.btn('#6366f1','#fff')}>
+              ✅ Applica al campo
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Fld({id, label, type='text', val, onChange, ph, options, cols, ctx=''}) {
-  const [aiLoading, setAiLoading] = useState(false);
+  const [showAI, setShowAI] = useState(false);
   const aiCtx = useAICtx();
 
   const fo = e => e.target.style.borderColor = ACCENT;
@@ -25,38 +95,23 @@ export function Fld({id, label, type='text', val, onChange, ph, options, cols, c
 
   const canAI = isAIEnabled && (type === 'textarea' || type === 'text');
 
-  const handleAI = async () => {
-    if (aiLoading) return;
-    setAiLoading(true);
-    let buf = '';
-    try {
-      const context = [
-        aiCtx.clientName && `Azienda: ${aiCtx.clientName}`,
-        aiCtx.sectionLabel && `Sezione: ${aiCtx.sectionLabel}`,
-        ctx,
-      ].filter(Boolean).join(' | ');
-      await generateFieldContent(label, ph, context, chunk => {
-        buf += chunk;
-        onChange(id, buf);
-      });
-    } catch (e) {
-      console.error('AI generation error:', e);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  const buildPrompt = () => [
+    aiCtx.clientName && `Azienda: ${aiCtx.clientName}`,
+    aiCtx.sectionLabel && `Sezione: ${aiCtx.sectionLabel}`,
+    ctx,
+    ph && `Istruzioni campo: ${ph}`,
+    `\nGenera il contenuto per il campo "${label}".`,
+  ].filter(Boolean).join('\n');
 
   const AIBtn = canAI && (
-    <button type='button' onClick={handleAI} disabled={aiLoading} title='Genera con IA'
+    <button type='button' onClick={() => setShowAI(true)} title='Genera con IA'
       style={{
-        border: 'none', cursor: aiLoading ? 'wait' : 'pointer',
-        background: aiLoading ? '#e0e7ff' : '#6366f1',
+        border: 'none', cursor: 'pointer', background: '#6366f1',
         color: '#fff', borderRadius: 5, padding: '1px 8px', fontSize: 10,
         fontWeight: 700, fontFamily: 'inherit', marginLeft: 7,
-        opacity: aiLoading ? 0.75 : 1, verticalAlign: 'middle',
-        display: 'inline-flex', alignItems: 'center', gap: 3, lineHeight: '1.7',
+        verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', gap: 3, lineHeight: '1.7',
       }}>
-      {aiLoading ? '⏳' : '✨'} {aiLoading ? 'Generando...' : 'IA'}
+      ✨ IA
     </button>
   );
 
@@ -70,6 +125,14 @@ export function Fld({id, label, type='text', val, onChange, ph, options, cols, c
 
   const Tag = type === 'textarea' ? 'textarea' : 'input';
   return wrap(<>
+    {showAI && (
+      <AIModal
+        label={label}
+        initialPrompt={buildPrompt()}
+        onApply={v => onChange(id, v)}
+        onClose={() => setShowAI(false)}
+      />
+    )}
     <label style={C.lbl}>{label}{AIBtn}</label>
     <Tag value={val||''} onChange={e=>onChange(id,e.target.value)} placeholder={ph}
       rows={type==='textarea'?3:undefined} type={type==='date'?'date':undefined}
