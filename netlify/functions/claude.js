@@ -1,11 +1,7 @@
 export default async (req) => {
-  const url = new URL(req.url);
-  const targetPath = url.pathname.replace(/^\/api\/claude/, '');
-  const targetUrl = `https://api.anthropic.com${targetPath}${url.search}`;
-
   const body = req.method !== 'GET' ? await req.text() : undefined;
 
-  const response = await fetch(targetUrl, {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: req.method,
     headers: {
       'Content-Type': 'application/json',
@@ -22,5 +18,3 @@ export default async (req) => {
     },
   });
 };
-
-export const config = { path: '/api/claude/*' };

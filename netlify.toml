@@ -3,6 +3,18 @@
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/api/groq/*"
+  to = "/.netlify/functions/groq"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/claude/*"
+  to = "/.netlify/functions/claude"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
