@@ -271,9 +271,88 @@ function DocRenderer({ content }) {
   return <div style={{ fontFamily: '"Calibri", "Georgia", serif' }}>{styled}</div>;
 }
 
+function markdownToHtml(text) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inlineFormat = s => s
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/_(.+?)_/g, '<em>$1</em>');
+
+  const lines = text.split('\n');
+  const out = [];
+  let inList = false;
+
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const trimmed = raw.trim();
+
+    if (!trimmed) { closeList(); out.push('<p style="margin:0;line-height:0.6em">&nbsp;</p>'); continue; }
+
+    // Headings markdown
+    if (/^### /.test(trimmed)) { closeList(); out.push(`<h3 style="font-family:Calibri,sans-serif;font-size:12pt;color:#1e3a5f;margin:14pt 0 4pt">${inlineFormat(esc(trimmed.slice(4)))}</h3>`); continue; }
+    if (/^## /.test(trimmed))  { closeList(); out.push(`<h2 style="font-family:Calibri,sans-serif;font-size:13pt;color:#1a3a5c;margin:16pt 0 5pt;border-bottom:1pt solid #d0d7e3;padding-bottom:3pt">${inlineFormat(esc(trimmed.slice(3)))}</h2>`); continue; }
+    if (/^# /.test(trimmed))   { closeList(); out.push(`<h1 style="font-family:Calibri,sans-serif;font-size:16pt;color:#0f172a;margin:20pt 0 8pt;text-align:center">${inlineFormat(esc(trimmed.slice(2)))}</h1>`); continue; }
+
+    // Articoli numerati: Art. 1, Art. 2, ARTICOLO 1 ecc.
+    if (/^(Art\.|Articolo|ARTICOLO)\s*\d/i.test(trimmed)) {
+      closeList();
+      out.push(`<p style="font-family:Calibri,sans-serif;font-size:11.5pt;font-weight:bold;color:#1e3a5f;margin:14pt 0 4pt">${inlineFormat(esc(trimmed))}</p>`);
+      continue;
+    }
+
+    // Righe in maiuscolo = titolo sezione
+    if (/^[A-ZÀÈÉÌÒÙ\s\d\-–—:.,()]{8,}$/.test(trimmed) && trimmed.length < 100 && !/^[-=*•]/.test(trimmed)) {
+      closeList();
+      out.push(`<p style="font-family:Calibri,sans-serif;font-size:12pt;font-weight:bold;color:#1a3a5c;margin:16pt 0 4pt;border-bottom:1pt solid #d0d7e3;padding-bottom:3pt;letter-spacing:.3pt">${esc(trimmed)}</p>`);
+      continue;
+    }
+
+    // Separatori
+    if (/^[=\-_]{5,}$/.test(trimmed)) { closeList(); out.push('<hr style="border:none;border-top:1pt solid #d0d7e3;margin:10pt 0"/>'); continue; }
+
+    // Lista con trattino/bullet
+    if (/^[-–•*]\s+/.test(trimmed)) {
+      if (!inList) { out.push('<ul style="margin:4pt 0 4pt 18pt;padding:0">'); inList = true; }
+      out.push(`<li style="font-family:Calibri,sans-serif;font-size:11pt;line-height:1.6;margin-bottom:3pt;color:#1a1a1a">${inlineFormat(esc(trimmed.replace(/^[-–•*]\s+/,'')))}</li>`);
+      continue;
+    }
+
+    // Lista numerata
+    if (/^\d+[.)]\s+/.test(trimmed)) {
+      closeList();
+      out.push(`<p style="font-family:Calibri,sans-serif;font-size:11pt;line-height:1.6;margin:2pt 0 2pt 18pt;color:#1a1a1a">${inlineFormat(esc(trimmed))}</p>`);
+      continue;
+    }
+
+    // Firma / data
+    if (/^(firma|data[:\s]|luogo[:\s]|il titolare|il responsabile|il dpo|lì,)/i.test(trimmed) && trimmed.length < 80) {
+      closeList();
+      out.push(`<p style="font-family:Calibri,sans-serif;font-size:11pt;margin:18pt 0 2pt;border-top:1pt dashed #b0b8c8;padding-top:10pt;color:#374151;font-style:italic">${esc(trimmed)}</p>`);
+      continue;
+    }
+
+    closeList();
+    out.push(`<p style="font-family:Calibri,sans-serif;font-size:11pt;line-height:1.7;margin:0 0 4pt;color:#1a1a1a;text-align:justify">${inlineFormat(esc(trimmed))}</p>`);
+  }
+
+  closeList();
+  return out.join('\n');
+}
+
 function exportToDoc(content, filename) {
-  const safe = content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><style>body{font-family:Calibri,sans-serif;font-size:11pt;line-height:1.6;margin:2cm}pre{white-space:pre-wrap;font-family:Calibri,sans-serif;font-size:11pt}</style></head><body><pre>${safe}</pre></body></html>`;
+  const body = markdownToHtml(content);
+  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'>
+<style>
+  @page { margin: 2.5cm 2cm; }
+  body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.6; color: #1a1a1a; }
+</style>
+</head>
+<body>${body}</body></html>`;
   const blob = new Blob(['\ufeff', html], {type:'application/msword'});
   const url = URL.createObjectURL(blob);
   const a = Object.assign(document.createElement('a'), {href:url, download:(filename||'doc').replace(/[^a-z0-9_\-]/gi,'_')+'.doc'});
