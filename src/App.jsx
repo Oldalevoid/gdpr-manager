@@ -5,6 +5,9 @@ import AnalisiRischi from './AnalisiRischi';
 import DPIA from './DPIA';
 import LIA from './LIA';
 import DataBreaches from './DataBreaches';
+import NIS2GapAnalysis from './NIS2GapAnalysis';
+import { NIS2Assets, NIS2Misure } from './NIS2AssetsMisure';
+import NIS2RiskVERA from './NIS2RiskVERA';
 
 const PRIMARY = '#1a3a5c';
 const ACCENT = '#2563eb';
@@ -811,15 +814,22 @@ function ModuleSelector({ client, onSelect }) {
 }
 
 // ---- NIS2 PAGE ----
-function NIS2Page({ client, onBack }) {
-  const SEZIONI = [
-    { id:'classificazione', icon:'🏷️', label:'Classificazione Soggetto', desc:'Determina se il soggetto rientra tra gli Essential Entities (EE) o Important Entities (IE) ai sensi dell\'art. 3 NIS2.', status:'coming', color:'#0891b2' },
-    { id:'gap', icon:'📊', label:'Gap Analysis NIS2', desc:'Analisi dello scarto tra le misure di sicurezza attualmente in essere e i requisiti minimi previsti dall\'art. 21 NIS2.', status:'coming', color:'#0891b2' },
-    { id:'misure', icon:'🔒', label:'Misure di Sicurezza', desc:'Registro e valutazione delle misure tecniche e organizzative adottate: gestione del rischio, continuità operativa, crittografia, IAM.', status:'coming', color:'#0891b2' },
-    { id:'incidenti', icon:'🚨', label:'Gestione Incidenti', desc:'Workflow per la notifica degli incidenti significativi all\'autorità competente entro 24h (early warning) e 72h (notifica completa).', status:'coming', color:'#dc2626' },
-    { id:'fornitori', icon:'🏭', label:'Registro Fornitori Critici', desc:'Mappatura della supply chain digitale e valutazione del rischio dei fornitori ICT ai sensi dell\'art. 21 par. 2 lett. d.', status:'coming', color:'#0891b2' },
-    { id:'report', icon:'📋', label:'Reportistica Autorità', desc:'Predisposizione della documentazione da trasmettere all\'Autorità nazionale competente (ACN in Italia).', status:'coming', color:'#0891b2' },
+function NIS2Page({ client, onBack, gapData, onSaveGap, nis2Assets, onSaveNIS2Assets, nis2Misure, onSaveNIS2Misure, nis2Risk, onSaveNIS2Risk }) {
+  const TABS = [
+    { id:'gap',       icon:'📊', label:'Gap Analysis' },
+    { id:'assets',    icon:'🖥️', label:'Asset Critici' },
+    { id:'misure',    icon:'🔒', label:'Misure Art.21' },
+    { id:'rischio',   icon:'⚠️', label:'Analisi Rischi' },
+    { id:'incidenti', icon:'🚨', label:'Incidenti' },
+    { id:'fornitori', icon:'🏭', label:'Supply Chain' },
+    { id:'report',    icon:'📋', label:'Reportistica' },
   ];
+  const COMING_SOON = [
+    { id:'incidenti', icon:'🚨', label:'Gestione Incidenti', desc:'Workflow per la notifica degli incidenti significativi all\'autorità competente entro 24h (early warning) e 72h (notifica completa), ai sensi dell\'art. 23 NIS2.' },
+    { id:'fornitori', icon:'🏭', label:'Supply Chain & Fornitori Critici', desc:'Mappatura della supply chain digitale e valutazione del rischio dei fornitori ICT ai sensi dell\'art. 21 par. 2 lett. d NIS2.' },
+    { id:'report',  icon:'📋', label:'Reportistica Autorità', desc:'Predisposizione della documentazione da trasmettere all\'Autorità nazionale competente (ACN in Italia) e registro degli incidenti significativi.' },
+  ];
+  const [activeTab, setActiveTab] = useState('gap');
 
   return (
     <div>
@@ -828,51 +838,62 @@ function NIS2Page({ client, onBack }) {
       </button>
 
       {/* Header */}
-      <div style={{background:'linear-gradient(135deg, #0c4a6e 0%, #0891b2 100%)',borderRadius:16,padding:'28px 32px',marginBottom:28,color:'#fff',position:'relative',overflow:'hidden'}}>
+      <div style={{background:'linear-gradient(135deg, #0c4a6e 0%, #0891b2 100%)',borderRadius:16,padding:'24px 28px',marginBottom:20,color:'#fff',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',right:-20,top:-20,width:140,height:140,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
-        <div style={{position:'absolute',right:40,bottom:-30,width:100,height:100,borderRadius:'50%',background:'rgba(255,255,255,0.04)'}}/>
-        <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:12}}>
-          <span style={{fontSize:36}}>🛡️</span>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <span style={{fontSize:32}}>🛡️</span>
           <div>
-            <h2 style={{margin:0,fontSize:22,fontWeight:800}}>Modulo NIS2</h2>
-            <div style={{fontSize:13,opacity:.8,marginTop:2}}>Direttiva UE 2022/2555 — Sicurezza delle reti e dei sistemi informativi</div>
+            <h2 style={{margin:0,fontSize:20,fontWeight:800}}>Modulo NIS2</h2>
+            <div style={{fontSize:12,opacity:.8,marginTop:2}}>Direttiva UE 2022/2555 — Framework Nazionale Cybersecurity e Data Protection 2025</div>
           </div>
-        </div>
-        <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.15)',borderRadius:20,padding:'6px 14px',fontSize:12,fontWeight:700}}>
-          ⏳ Modulo in sviluppo — funzionalità operative disponibili a breve
         </div>
       </div>
 
-      {/* Cards sezioni */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}}>
-        {SEZIONI.map(s=>(
-          <div key={s.id} style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e5eaf0',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',opacity:.85,position:'relative',overflow:'hidden'}}>
-            <div style={{position:'absolute',top:12,right:12,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'#f0f9ff',color:'#0891b2'}}>Prossimamente</div>
-            <div style={{width:42,height:42,borderRadius:10,background:'#ecfeff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,marginBottom:12}}>{s.icon}</div>
-            <div style={{fontWeight:700,fontSize:14,color:'#0f172a',marginBottom:6}}>{s.label}</div>
-            <div style={{fontSize:12,color:'#64748b',lineHeight:1.6}}>{s.desc}</div>
-          </div>
+      {/* Tab bar */}
+      <div style={{display:'flex',gap:4,marginBottom:20,background:'#f1f5f9',borderRadius:10,padding:4}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setActiveTab(t.id)}
+            style={{flex:1,padding:'8px 4px',border:'none',borderRadius:7,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:12,
+              background:activeTab===t.id?'#fff':'transparent',
+              color:activeTab===t.id?'#0891b2':'#64748b',
+              boxShadow:activeTab===t.id?'0 1px 4px rgba(0,0,0,0.08)':'none',
+              transition:'all .15s'}}>
+            {t.icon} {t.label}
+          </button>
         ))}
       </div>
 
-      {/* Note normative */}
-      <div style={{marginTop:28,background:'#f0f9ff',borderRadius:12,padding:'20px 24px',border:'1px solid #bae6fd'}}>
-        <div style={{fontWeight:700,fontSize:13,color:'#0c4a6e',marginBottom:10}}>📌 Riferimenti normativi NIS2</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}}>
-          {[
-            'Art. 3 — Classificazione soggetti (EE/IE)',
-            'Art. 21 — Misure di gestione del rischio',
-            'Art. 23 — Obbligo di notifica degli incidenti',
-            'Art. 26 — Giurisdizione e registrazione',
-            'Art. 32-33 — Vigilanza e sanzioni',
-            'D.Lgs. di recepimento (in corso — Italia)',
-          ].map(r=>(
-            <div key={r} style={{display:'flex',alignItems:'flex-start',gap:8,fontSize:12,color:'#075985'}}>
-              <span style={{marginTop:1,flexShrink:0}}>▸</span>{r}
-            </div>
-          ))}
+      {/* Gap Analysis tab */}
+      {activeTab==='gap' && (
+        <NIS2GapAnalysis gapData={gapData} onSave={onSaveGap} client={client}/>
+      )}
+
+      {/* Asset Critici tab */}
+      {activeTab==='assets' && (
+        <NIS2Assets assets={nis2Assets} onSave={onSaveNIS2Assets}/>
+      )}
+
+      {/* Misure di Sicurezza tab */}
+      {activeTab==='misure' && (
+        <NIS2Misure misure={nis2Misure} assets={nis2Assets} onSave={onSaveNIS2Misure}/>
+      )}
+
+      {/* Analisi Rischi VERA tab */}
+      {activeTab==='rischio' && (
+        <NIS2RiskVERA riskData={nis2Risk} onSave={onSaveNIS2Risk} assets={nis2Assets} misure={nis2Misure}/>
+      )}
+
+      {/* Coming soon tabs */}
+      {!['gap','assets','misure','rischio'].includes(activeTab) && COMING_SOON.filter(x=>x.id===activeTab).map(s=>(
+        <div key={s.id} style={{background:'#fff',borderRadius:12,padding:40,border:'1px solid #e5eaf0',textAlign:'center'}}>
+          <div style={{fontSize:48,marginBottom:16}}>{s.icon}</div>
+          <div style={{fontWeight:700,fontSize:18,color:'#0f172a',marginBottom:8}}>{s.label}</div>
+          <div style={{fontSize:14,color:'#64748b',maxWidth:480,margin:'0 auto',lineHeight:1.7,marginBottom:20}}>{s.desc}</div>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'#f0f9ff',borderRadius:20,padding:'8px 16px',fontSize:12,fontWeight:700,color:'#0891b2'}}>
+            ⏳ Funzionalità in sviluppo — disponibile a breve
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -1035,6 +1056,10 @@ export default function App() {
   const [clientDPIA,setClientDPIA]=useState([]);
   const [clientLIA,setClientLIA]=useState([]);
   const [clientBreaches,setClientBreaches]=useState([]);
+  const [clientNIS2Gap,setClientNIS2Gap]=useState({});
+  const [clientNIS2Assets,setClientNIS2Assets]=useState([]);
+  const [clientNIS2Misure,setClientNIS2Misure]=useState([]);
+  const [clientNIS2Risk,setClientNIS2Risk]=useState({});
   const [docSettings,setDocSettings]=useState({});
   const [selDt,setSelDt]=useState(null);
   const [settingsDt,setSettingsDt]=useState(null);
@@ -1080,7 +1105,9 @@ export default function App() {
     const [
       { data: docRows },{ data: assetRows },{ data: supplierRows },
       { data: trattRows },{ data: misureRows },{ data: analisiRows },
-      { data: dpiaRows },{ data: liaRows },{ data: breachRows }
+      { data: dpiaRows },{ data: liaRows },{ data: breachRows },
+      { data: nis2Rows },{ data: nis2AssetRows },{ data: nis2MisureRows },
+      { data: nis2RiskRow }
     ] = await Promise.all([
       supabase.from('documents').select('*').eq('client_id',c.id).order('created_at'),
       supabase.from('assets').select('*').eq('client_id',c.id),
@@ -1091,6 +1118,10 @@ export default function App() {
       supabase.from('dpia').select('*').eq('client_id',c.id),
       supabase.from('lia').select('*').eq('client_id',c.id),
       supabase.from('data_breaches').select('*').eq('client_id',c.id).order('created_at'),
+      supabase.from('nis2_gap').select('*').eq('client_id',c.id).maybeSingle(),
+      supabase.from('nis2_assets').select('*').eq('client_id',c.id).order('created_at'),
+      supabase.from('nis2_misure').select('*').eq('client_id',c.id).order('created_at'),
+      supabase.from('nis2_risk_vera').select('*').eq('client_id',c.id).maybeSingle(),
     ]);
     setClientDocs((docRows||[]).map(r=>({id:r.id,tipo:r.tipo,label:r.label,contenuto:r.contenuto,createdAt:r.created_at})));
     setClientAssets((assetRows||[]).map(r=>({...r.data,id:r.id})));
@@ -1101,6 +1132,10 @@ export default function App() {
     setClientDPIA((dpiaRows||[]).map(r=>({id:r.id,trattamentoId:r.trattamento_id,data:r.data,createdAt:r.created_at})));
     setClientLIA((liaRows||[]).map(r=>({id:r.id,trattamentoId:r.trattamento_id,data:r.data,createdAt:r.created_at})));
     setClientBreaches((breachRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
+    setClientNIS2Gap(nis2Rows?.data||{});
+    setClientNIS2Assets((nis2AssetRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
+    setClientNIS2Misure((nis2MisureRows||[]).map(r=>({...r.data,id:r.id,createdAt:r.created_at})));
+    setClientNIS2Risk(nis2RiskRow?.data||{});
   };
   const saveDocs=async(arr,cid=selClient.id)=>{
     setClientDocs(arr);
@@ -1166,6 +1201,24 @@ export default function App() {
   const deleteBreach=async id=>{
     setClientBreaches(p=>p.filter(x=>x.id!==id));
     await supabase.from('data_breaches').delete().eq('id',id);
+  };
+  const saveNIS2Gap=async gap=>{
+    setClientNIS2Gap(gap);
+    await supabase.from('nis2_gap').upsert({client_id:selClient.id,data:gap,updated_at:new Date().toISOString()},{onConflict:'client_id'});
+  };
+  const saveNIS2Assets=async arr=>{
+    setClientNIS2Assets(arr);
+    await supabase.from('nis2_assets').delete().eq('client_id',selClient.id);
+    if(arr.length>0) await supabase.from('nis2_assets').insert(arr.map(a=>({id:a.id,client_id:selClient.id,data:a,created_at:a.createdAt||new Date().toISOString()})));
+  };
+  const saveNIS2Misure=async arr=>{
+    setClientNIS2Misure(arr);
+    await supabase.from('nis2_misure').delete().eq('client_id',selClient.id);
+    if(arr.length>0) await supabase.from('nis2_misure').insert(arr.map(m=>({id:m.id,client_id:selClient.id,data:m,created_at:m.createdAt||new Date().toISOString()})));
+  };
+  const saveNIS2Risk=async riskData=>{
+    setClientNIS2Risk(riskData);
+    await supabase.from('nis2_risk_vera').upsert({client_id:selClient.id,data:riskData,updated_at:new Date().toISOString()},{onConflict:'client_id'});
   };
 
   const saveFunzioni = async arr => {
@@ -1385,7 +1438,11 @@ export default function App() {
           />
         )}
         {page==='nis2'&&selClient&&(
-          <NIS2Page client={selClient} onBack={()=>setPage('modules')}/>
+          <NIS2Page client={selClient} onBack={()=>setPage('modules')}
+            gapData={clientNIS2Gap} onSaveGap={saveNIS2Gap}
+            nis2Assets={clientNIS2Assets} onSaveNIS2Assets={saveNIS2Assets}
+            nis2Misure={clientNIS2Misure} onSaveNIS2Misure={saveNIS2Misure}
+            nis2Risk={clientNIS2Risk} onSaveNIS2Risk={saveNIS2Risk}/>
         )}
         {page==='aiact'&&selClient&&(
           <AIActPage client={selClient} onBack={()=>setPage('modules')}/>
