@@ -62,6 +62,18 @@ export function SectionTitle({children}) {
 }
 
 export const BASI_GIURIDICHE = ['Consenso (art.6.1.a)','Contratto (art.6.1.b)','Obbligo legale (art.6.1.c)','Interesse vitale (art.6.1.d)','Interesse pubblico (art.6.1.e)','Interesse legittimo (art.6.1.f)'];
+export const BASI_GIURIDICHE_ART9 = [
+  'Consenso esplicito (art.9.2.a)',
+  'Diritti in materia di lavoro e protezione sociale (art.9.2.b)',
+  'Interessi vitali — interessato incapace di prestare consenso (art.9.2.c)',
+  'Fondazione, associazione o organismo senza scopo di lucro (art.9.2.d)',
+  'Dati resi manifestamente pubblici dall\'interessato (art.9.2.e)',
+  'Accertamento, esercizio o difesa di diritti in sede giudiziaria (art.9.2.f)',
+  'Interesse pubblico rilevante su base legislativa (art.9.2.g)',
+  'Finalità di medicina preventiva o del lavoro (art.9.2.h)',
+  'Interesse pubblico nel settore della sanità pubblica (art.9.2.i)',
+  'Archiviazione, ricerca scientifica/storica o fini statistici (art.9.2.j)',
+];
 export const STATI_TRATTAMENTO = ['Attivo','Sospeso','Cessato'];
 export const TIPI_MISURA = ['Tecnica','Organizzativa','Fisica','Logica'];
 export const STATI_MISURA = ['Implementata','In corso','Pianificata'];

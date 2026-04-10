@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
-import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT, BASI_GIURIDICHE, STATI_TRATTAMENTO, TIPI_MISURA, STATI_MISURA } from './shared';
+import { C, Fld, Modal, StatusBadge, EmptyState, SectionTitle, ACCENT, BASI_GIURIDICHE, BASI_GIURIDICHE_ART9, STATI_TRATTAMENTO, TIPI_MISURA, STATI_MISURA } from './shared';
 
 const STATO_COLOR = { Attivo:'#16a34a', Sospeso:'#d97706', Cessato:'#64748b' };
 const MISURA_COLOR = { Implementata:'#16a34a', 'In corso':'#d97706', Pianificata:'#2563eb' };
@@ -309,8 +309,32 @@ function TrattamentoForm({ initial, assets, suppliers, misure, funzioni, onSaveF
           </div>
 
           <div style={{gridColumn:'1/-1'}}><Fld id='finalita' label='Finalità *' type='textarea' val={f.finalita} onChange={u} ph='es. Gestione del rapporto contrattuale con i clienti...'/></div>
-          <Fld id='baseGiuridica' label='Base giuridica *' val={f.baseGiuridica} onChange={u} options={BASI_GIURIDICHE}/>
+          <Fld id='baseGiuridica' label='Base giuridica Art.6 *' val={f.baseGiuridica} onChange={u} options={BASI_GIURIDICHE}/>
           <Fld id='stato' label='Stato' val={f.stato} onChange={u} options={STATI_TRATTAMENTO}/>
+          <div style={{gridColumn:'1/-1'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,marginTop:2}}>
+              <input type='checkbox' id='hasDatiParticolari' checked={!!f.hasDatiParticolari}
+                onChange={e=>u('hasDatiParticolari',e.target.checked)}
+                style={{width:16,height:16,accentColor:'#dc2626',flexShrink:0,cursor:'pointer'}}/>
+              <label htmlFor='hasDatiParticolari' style={{fontSize:13,color:'#374151',cursor:'pointer',fontWeight:600}}>
+                Il trattamento riguarda <strong>dati di categoria particolare</strong> (art.9 GDPR) — dati sanitari, biometrici, genetici, etnici, religiosi, politici, sindacali, orientamento sessuale
+              </label>
+            </div>
+            {f.hasDatiParticolari && (
+              <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:8,padding:'12px 14px',marginBottom:4}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#dc2626',marginBottom:8,textTransform:'uppercase',letterSpacing:'.4px'}}>
+                  ⚠️ Base giuridica Art.9 par.2 (dati particolari)
+                </div>
+                <select value={f.baseGiuridicaArt9||''} onChange={e=>u('baseGiuridicaArt9',e.target.value)}
+                  style={{...C.inp,borderColor:'#fca5a5'}}
+                  onFocus={e=>e.target.style.borderColor='#dc2626'}
+                  onBlur={e=>e.target.style.borderColor='#fca5a5'}>
+                  <option value=''>Seleziona base giuridica art.9...</option>
+                  {BASI_GIURIDICHE_ART9.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
           <Fld id='categorieDati' label='Categorie di dati' type='textarea' val={f.categorieDati} onChange={u} ph='es. Dati anagrafici, contrattuali, bancari...'/>
           <Fld id='categorieInteressati' label='Categorie di interessati' type='textarea' val={f.categorieInteressati} onChange={u} ph='es. Clienti, dipendenti, fornitori...'/>
           <Fld id='destinatariInterni' label='Destinatari interni' type='textarea' val={f.destinatariInterni} onChange={u} ph='es. Ufficio amministrativo, reparto IT...'/>
@@ -410,6 +434,7 @@ function TrattamentoCard({ t, assets, suppliers, misure, onEdit, onDelete, onOpe
           <div style={{display:'flex',gap:10,flexWrap:'wrap',fontSize:11,color:'#94a3b8'}}>
             {t.funzioneAziendale && <span style={{background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'1px 7px',borderRadius:20,fontSize:10}}>🏢 {t.funzioneAziendale}</span>}
             <span>⚖️ {t.baseGiuridica}</span>
+            {t.hasDatiParticolari && <span style={{background:'#fef2f2',color:'#dc2626',fontWeight:700,padding:'1px 7px',borderRadius:20,fontSize:10}}>🔴 Dati particolari art.9</span>}
             {assetNames.length>0 && <span>🖥️ {assetNames.length} asset</span>}
             {suppNames.length>0  && <span>🏭 {suppNames.length} fornitor{suppNames.length===1?'e':'i'}</span>}
             {totMisure>0 && <span>🔒 {totMisure} misure</span>}
@@ -572,8 +597,16 @@ function TrattamentoDetail({ t, assets, suppliers, misure, onClose, onEdit }) {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0 24px'}}>
         {t.funzioneAziendale && <div style={{gridColumn:'1/-1',marginBottom:10}}><span style={{background:'#f0fdf4',color:'#16a34a',fontWeight:700,padding:'3px 10px',borderRadius:20,fontSize:12}}>🏢 {t.funzioneAziendale}</span></div>}
         <div style={{gridColumn:'1/-1'}}><Row label='Finalità' val={t.finalita}/></div>
-        <Row label='Base giuridica' val={t.baseGiuridica}/>
+        <Row label='Base giuridica Art.6' val={t.baseGiuridica}/>
         <Row label='Stato' val={t.stato}/>
+        {t.hasDatiParticolari && (
+          <div style={{gridColumn:'1/-1',marginBottom:10}}>
+            <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:8,padding:'10px 14px'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#dc2626',marginBottom:4,textTransform:'uppercase',letterSpacing:'.4px'}}>⚠️ Dati di categoria particolare (art.9 GDPR)</div>
+              <div style={{fontSize:13,color:'#374151'}}>{t.baseGiuridicaArt9||'Base art.9 non specificata'}</div>
+            </div>
+          </div>
+        )}
         <Row label='Categorie di dati' val={t.categorieDati}/>
         <Row label='Categorie di interessati' val={t.categorieInteressati}/>
         <Row label='Destinatari interni' val={t.destinatariInterni}/>
