@@ -4,6 +4,143 @@ import { AICtx, useAIRecord } from './AIContext';
 
 const PROB_LABELS = ['','Bassa','Media','Alta','Molto Alta'];
 const IMP_LABELS  = ['','Trascurabile','Moderato','Significativo','Grave'];
+
+// ─── Paniere di rischi GDPR di default ────────────────────────────────────────
+const CATEGORIE_PANIERE = ['Accesso e Riservatezza', 'Integrità e Disponibilità', 'Errori e Conformità', 'Attacchi Informatici'];
+
+const PANIERE_DEFAULT = [
+  // ── Accesso e Riservatezza ──
+  { cat: 'Accesso e Riservatezza', minaccia: 'Accesso non autorizzato ai dati personali', vulnerabilita: 'Credenziali deboli o condivise, assenza di autenticazione a più fattori, gestione insufficiente dei privilegi di accesso.', probabilita: 2, impatto: 3, misureMitigazione: 'Implementare MFA, politica password robusta, principio del privilegio minimo, log degli accessi.', rischioResiduo: 2 },
+  { cat: 'Accesso e Riservatezza', minaccia: 'Divulgazione non autorizzata a terzi', vulnerabilita: 'Invio errato di email, condivisione accidentale di file, comunicazione a destinatari non autorizzati.', probabilita: 2, impatto: 3, misureMitigazione: 'Formazione del personale, DLP (Data Loss Prevention), procedure di verifica destinatari.', rischioResiduo: 2 },
+  { cat: 'Accesso e Riservatezza', minaccia: 'Accesso fisico non autorizzato ai sistemi', vulnerabilita: 'Postazioni di lavoro incustodite, server room non protetti, mancanza di clean desk policy.', probabilita: 1, impatto: 3, misureMitigazione: 'Controllo accessi fisici, lock automatico postazioni, CCTV, clean desk policy.', rischioResiduo: 1 },
+  { cat: 'Accesso e Riservatezza', minaccia: 'Intercettazione di dati in transito', vulnerabilita: 'Trasmissione dati senza cifratura, uso di reti Wi-Fi pubbliche, protocolli obsoleti (HTTP, FTP).', probabilita: 2, impatto: 3, misureMitigazione: 'Cifratura TLS/HTTPS su tutte le comunicazioni, VPN per accessi remoti, dismissione protocolli non sicuri.', rischioResiduo: 1 },
+  { cat: 'Accesso e Riservatezza', minaccia: 'Utilizzo non autorizzato da parte di responsabili/sub-responsabili', vulnerabilita: 'Contratti DPA insufficienti, mancata verifica delle misure di sicurezza dei fornitori, sub-responsabili non autorizzati.', probabilita: 2, impatto: 3, misureMitigazione: 'Contratti Art.28 completi, audit fornitori, clausole di responsabilità, lista sub-responsabili approvati.', rischioResiduo: 2 },
+
+  // ── Integrità e Disponibilità ──
+  { cat: 'Integrità e Disponibilità', minaccia: 'Perdita o distruzione accidentale dei dati', vulnerabilita: 'Assenza di backup sistematici, backup non testati, archiviazione su supporti non ridondanti.', probabilita: 2, impatto: 4, misureMitigazione: 'Backup automatici giornalieri (3-2-1), test periodici di restore, storage ridondante, disaster recovery plan.', rischioResiduo: 1 },
+  { cat: 'Integrità e Disponibilità', minaccia: 'Alterazione o corruzione dei dati personali', vulnerabilita: 'Accessi con permessi eccessivi, assenza di controllo integrità, processi di importazione/migrazione dati non controllati.', probabilita: 1, impatto: 3, misureMitigazione: 'Controllo integrità (hash/checksum), log delle modifiche, separazione dei ruoli, validazione input.', rischioResiduo: 1 },
+  { cat: 'Integrità e Disponibilità', minaccia: 'Indisponibilità prolungata del sistema (downtime)', vulnerabilita: 'Infrastruttura non ridondante, assenza di SLA adeguati con fornitori cloud, mancanza di Business Continuity Plan.', probabilita: 2, impatto: 3, misureMitigazione: 'Architettura ad alta disponibilità, SLA con penali, BCP documentato, test di continuità operativa.', rischioResiduo: 2 },
+  { cat: 'Integrità e Disponibilità', minaccia: 'Perdita dati alla scadenza del contratto con fornitore cloud', vulnerabilita: 'Dati archiviati solo presso fornitore, mancanza di procedura di portabilità, lock-in tecnologico.', probabilita: 1, impatto: 4, misureMitigazione: 'Backup locale periodico, clausola di portabilità nel contratto, test di migrazione annuale.', rischioResiduo: 1 },
+
+  // ── Errori e Conformità ──
+  { cat: 'Errori e Conformità', minaccia: 'Errore umano nel trattamento dei dati', vulnerabilita: 'Formazione insufficiente del personale, procedure non documentate, elevato turnover del personale.', probabilita: 3, impatto: 2, misureMitigazione: 'Formazione periodica GDPR, procedure operative documentate, checklist per operazioni critiche, supervisione.', rischioResiduo: 2 },
+  { cat: 'Errori e Conformità', minaccia: 'Mancata cancellazione dei dati alla scadenza della retention', vulnerabilita: 'Assenza di procedure di cancellazione automatica, retention policy non implementata tecnicamente.', probabilita: 3, impatto: 2, misureMitigazione: 'Sistemi di cancellazione automatica, audit periodici degli archivi, responsabile della retention designato.', rischioResiduo: 2 },
+  { cat: 'Errori e Conformità', minaccia: 'Mancata risposta alle richieste degli interessati (Art.15-22)', vulnerabilita: 'Nessun processo formale per la gestione delle richieste, tempi di risposta non monitorati.', probabilita: 2, impatto: 2, misureMitigazione: 'Procedura formalizzata per richieste DSAR, registro delle richieste, responsabile designato, reminder automatici.', rischioResiduo: 1 },
+  { cat: 'Errori e Conformità', minaccia: 'Trasferimento illecito verso paesi terzi extra-SEE', vulnerabilita: 'Utilizzo di servizi cloud o fornitori in paesi senza adeguatezza, mancanza di SCC o BCR.', probabilita: 2, impatto: 3, misureMitigazione: 'Mappatura dei flussi internazionali, adozione SCC approvate, verifica adeguatezza paese destinatario.', rischioResiduo: 2 },
+  { cat: 'Errori e Conformità', minaccia: 'Raccolta di dati eccedente la finalità (violazione minimizzazione)', vulnerabilita: 'Form di raccolta eccessivamente ampi, campi non necessari, finalità non documentate.', probabilita: 2, impatto: 2, misureMitigazione: 'Privacy by design, revisione periodica dei form e dei dati raccolti, data mapping aggiornato.', rischioResiduo: 1 },
+
+  // ── Attacchi Informatici ──
+  { cat: 'Attacchi Informatici', minaccia: 'Attacco phishing / ingegneria sociale', vulnerabilita: 'Personale non formato, email aziendali esposte pubblicamente, assenza di filtri antispam avanzati.', probabilita: 3, impatto: 3, misureMitigazione: 'Formazione anti-phishing con simulazioni, filtri email avanzati, MFA per tutti gli account, segnalazione incidenti.', rischioResiduo: 2 },
+  { cat: 'Attacchi Informatici', minaccia: 'Attacco ransomware con cifratura dei dati', vulnerabilita: 'Sistemi non aggiornati, backup non isolati dalla rete, click su allegati malevoli, RDP esposto.', probabilita: 2, impatto: 4, misureMitigazione: 'Patch management sistematico, backup offline/immutabili, EDR/antivirus avanzato, segmentazione rete, piano risposta incidenti.', rischioResiduo: 2 },
+  { cat: 'Attacchi Informatici', minaccia: 'Esfiltrazione dati da attore malevolo esterno', vulnerabilita: 'Vulnerabilità nelle applicazioni web, SQL injection, accessi API non protetti, credenziali compromesse.', probabilita: 2, impatto: 4, misureMitigazione: 'Penetration test periodico, WAF, SIEM, monitoraggio anomalie, gestione vulnerabilità, bug bounty.', rischioResiduo: 2 },
+  { cat: 'Attacchi Informatici', minaccia: 'Minaccia interna — dipendente malintenzionato', vulnerabilita: 'Accessi eccessivi non revocati, mancanza di segregazione dei compiti, assenza di monitoraggio comportamentale.', probabilita: 1, impatto: 4, misureMitigazione: 'Principio del privilegio minimo, revoca immediata accessi in uscita, audit log, NDA, procedure offboarding.', rischioResiduo: 2 },
+];
+
+function PaniereModal({ existing, onImport, onClose }) {
+  const [sel, setSel] = useState({});
+  const [catFilter, setCatFilter] = useState('Tutti');
+
+  const toggle = i => setSel(p => ({ ...p, [i]: !p[i] }));
+  const toggleAll = (filtered) => {
+    const allSel = filtered.every((_, i) => sel[PANIERE_DEFAULT.indexOf(_)]);
+    const upd = { ...sel };
+    filtered.forEach(r => { upd[PANIERE_DEFAULT.indexOf(r)] = !allSel; });
+    setSel(upd);
+  };
+
+  const existingMinacce = new Set(existing.map(s => s.minaccia.toLowerCase()));
+  const filtered = PANIERE_DEFAULT.filter(r =>
+    (catFilter === 'Tutti' || r.cat === catFilter) && !existingMinacce.has(r.minaccia.toLowerCase())
+  );
+  const alreadyImported = PANIERE_DEFAULT.filter(r => existingMinacce.has(r.minaccia.toLowerCase()));
+  const selCount = Object.values(sel).filter(Boolean).length;
+
+  const doImport = () => {
+    const toAdd = PANIERE_DEFAULT
+      .filter((_, i) => sel[i])
+      .map(r => ({ ...r, id: Date.now().toString() + Math.random(), misureIds: [] }));
+    onImport(toAdd);
+    onClose();
+  };
+
+  const catColor = { 'Accesso e Riservatezza': '#dc2626', 'Integrità e Disponibilità': '#d97706', 'Errori e Conformità': '#7c3aed', 'Attacchi Informatici': '#0891b2' };
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}
+      onClick={e => { if (e.target===e.currentTarget) onClose(); }}>
+      <div style={{ ...C.card, width:'100%', maxWidth:780, maxHeight:'88vh', overflow:'auto', padding:28 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+          <span style={{ fontSize:22 }}>📚</span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:700, fontSize:15, color:'#0f172a' }}>Paniere rischi GDPR — scenari tipici</div>
+            <div style={{ fontSize:12, color:'#64748b', marginTop:1 }}>{PANIERE_DEFAULT.length} scenari predefiniti · {alreadyImported.length > 0 ? `${alreadyImported.length} già presenti` : 'nessuno ancora importato'}</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer',fontSize:18,color:'#94a3b8' }}>✕</button>
+        </div>
+
+        {/* Filtro categorie */}
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
+          {['Tutti', ...CATEGORIE_PANIERE].map(c => (
+            <button key={c} onClick={() => setCatFilter(c)}
+              style={{ ...C.btn(catFilter===c ? (catColor[c]||ACCENT) : '#f1f5f9', catFilter===c ? '#fff' : '#374151', true), fontSize:11 }}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* Lista scenari */}
+        <div style={{ marginBottom:16 }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign:'center', padding:24, color:'#94a3b8', fontSize:13 }}>
+              {catFilter === 'Tutti' ? 'Tutti gli scenari di questa categoria sono già stati importati.' : 'Tutti gli scenari di questa categoria sono già presenti.'}
+            </div>
+          ) : (
+            <>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <span style={{ fontSize:12, color:'#64748b' }}>{filtered.length} scenari disponibili</span>
+                <button onClick={() => toggleAll(filtered)}
+                  style={{ ...C.btn('#f1f5f9','#374151',true), fontSize:11 }}>
+                  {filtered.every(r => sel[PANIERE_DEFAULT.indexOf(r)]) ? 'Deseleziona tutti' : 'Seleziona tutti'}
+                </button>
+              </div>
+              {filtered.map(r => {
+                const i = PANIERE_DEFAULT.indexOf(r);
+                const score = r.probabilita * r.impatto;
+                return (
+                  <div key={i} onClick={() => toggle(i)}
+                    style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'12px 14px', borderRadius:10, marginBottom:6, cursor:'pointer', border:`1.5px solid ${sel[i] ? catColor[r.cat]||ACCENT : '#e5eaf0'}`, background: sel[i] ? (catColor[r.cat]||ACCENT)+'08' : '#fafafa' }}>
+                    <input type='checkbox' checked={!!sel[i]} onChange={() => toggle(i)} onClick={e => e.stopPropagation()}
+                      style={{ width:16, height:16, accentColor: catColor[r.cat]||ACCENT, flexShrink:0, marginTop:2 }} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:3, flexWrap:'wrap' }}>
+                        <span style={{ fontWeight:700, fontSize:13, color:'#0f172a' }}>{r.minaccia}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:10, background: catColor[r.cat]+'22', color: catColor[r.cat] }}>{r.cat}</span>
+                        <StatusBadge label={`Rischio ${riskLabel(score)}: ${score}`} color={riskColor(score)} />
+                      </div>
+                      <div style={{ fontSize:12, color:'#64748b', marginBottom:3 }}><strong>Vulnerabilità:</strong> {r.vulnerabilita}</div>
+                      <div style={{ fontSize:11, color:'#94a3b8' }}>P:{r.probabilita} · I:{r.impatto} · Residuo:{r.rischioResiduo}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display:'flex', gap:10, alignItems:'center', justifyContent:'space-between', paddingTop:16, borderTop:'1px solid #f1f5f9' }}>
+          <span style={{ fontSize:13, color:'#64748b' }}>{selCount > 0 ? `${selCount} scenario${selCount!==1?'i':''} selezionat${selCount!==1?'i':'o'}` : 'Nessuno selezionato'}</span>
+          <div style={C.row}>
+            <button onClick={onClose} style={C.btn('#f1f5f9','#374151')}>Annulla</button>
+            <button onClick={doImport} disabled={selCount===0} style={{ ...C.btn(ACCENT,'#fff'), opacity: selCount===0 ? 0.5 : 1 }}>
+              ⬇️ Importa {selCount > 0 ? selCount : ''} scenario{selCount!==1?'i':''}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 const riskColor = r => r<=4?'#16a34a':r<=8?'#d97706':r<=12?'#ea580c':'#dc2626';
 const riskLabel = r => r<=4?'Basso':r<=8?'Medio':r<=12?'Alto':'Critico';
 
@@ -138,7 +275,7 @@ function RiskMatrix({ scenarios }) {
   );
 }
 
-function ScenarioList({ scenarios, onAdd, onEdit, onDelete, misure = [] }) {
+function ScenarioList({ scenarios, onAdd, onEdit, onDelete, onPaniere, misure = [] }) {
   const [confirmDel, setConfirmDel] = useState(null);
   const misuraMap = Object.fromEntries(misure.map(m=>[m.id,m]));
   const statCol = s => s==='Implementata'?'#16a34a':s==='In corso'?'#d97706':s==='Pianificata'?'#2563eb':'#94a3b8';
@@ -146,7 +283,10 @@ function ScenarioList({ scenarios, onAdd, onEdit, onDelete, misure = [] }) {
     <div>
       <div style={{...C.row,justifyContent:'space-between',marginBottom:12}}>
         <SectionTitle>⚠️ Scenari di Rischio</SectionTitle>
-        <button style={C.btn(ACCENT,'#fff',true)} onClick={onAdd}>+ Aggiungi scenario</button>
+        <div style={C.row}>
+          <button style={C.btn('#7c3aed','#fff',true)} onClick={onPaniere}>📚 Paniere default</button>
+          <button style={C.btn(ACCENT,'#fff',true)} onClick={onAdd}>+ Aggiungi scenario</button>
+        </div>
       </div>
       {scenarios.length===0
         ? <div style={{textAlign:'center',padding:24,color:'#94a3b8',fontSize:13}}>Nessuno scenario ancora.</div>
@@ -213,6 +353,7 @@ export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSel
   const [selId, setSelId] = useState(initialSelId||trattamenti[0]?.id||null);
   const [showForm, setShowForm] = useState(false);
   const [editScenario, setEditScenario] = useState(null);
+  const [showPaniere, setShowPaniere] = useState(false);
 
   const record = analisi.find(a=>a.trattamentoId===selId);
   const scenarios = record?.data?.scenarios||[];
@@ -238,8 +379,17 @@ export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSel
 
   const handleDelete = id => persist(scenarios.filter(s=>s.id!==id));
 
+  const handleImportPaniere = (toAdd) => persist([...scenarios, ...toAdd]);
+
   return (
     <div>
+      {showPaniere && (
+        <PaniereModal
+          existing={scenarios}
+          onImport={handleImportPaniere}
+          onClose={() => setShowPaniere(false)}
+        />
+      )}
       {(showForm||editScenario) && (
         <ScenarioForm
           initial={editScenario}
@@ -262,6 +412,7 @@ export default function AnalisiRischi({ trattamenti, analisi, onSave, initialSel
                     onAdd={()=>{setEditScenario(null);setShowForm(true);}}
                     onEdit={s=>{setEditScenario(s);setShowForm(true);}}
                     onDelete={handleDelete}
+                    onPaniere={() => setShowPaniere(true)}
                   />
                 </div>
               : <EmptyState icon='👈' title='Seleziona un trattamento'/>}
