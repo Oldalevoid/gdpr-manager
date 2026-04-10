@@ -871,7 +871,7 @@ function ClientForm({initial,onSave,onCancel}) {
 }
 
 // ---- GENERATE PAGE ----
-function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,onDocEdit,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti}) {
+function GeneratePage({client,dt,inputs,setInputs,onGenerate,generating,genDoc,onDocEdit,error,onCopy,copied,onBack,onExport,autoSaved,docSettings,onOpenSettings,extraPrompt,setExtraPrompt,chatHistory,followUpPrompt,setFollowUpPrompt,onFollowUp,followingUp,funzioni,clientTrattamenti,apiKey}) {
   const u=(k,v)=>setInputs(p=>({...p,[k]:v}));
   const s=docSettings[dt.id]||{};
   const fo=e=>e.target.style.borderColor=dt.color, bl=e=>e.target.style.borderColor='#dde3ec';
@@ -1953,6 +1953,7 @@ export default function App() {
             followingUp={followingUp}
             funzioni={selClient?.funzioni||[]}
             clientTrattamenti={clientTrattamenti}
+            apiKey={apiKey}
           />
         )}
         {page==='view'&&viewDoc&&(
