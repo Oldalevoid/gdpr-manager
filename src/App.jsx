@@ -65,10 +65,26 @@ const DOC_TYPES = [
 ];
 
 const DEFAULT_SYSTEM = (docLabel) =>
-  `Sei un esperto consulente GDPR e privacy italiano con 15 anni di esperienza. Genera documenti professionali, dettagliati e conformi alla normativa vigente (GDPR, D.Lgs. 196/2003 e successive modifiche). Scrivi sempre in italiano. Il documento deve essere immediatamente utilizzabile senza ulteriori modifiche. Non aggiungere note o disclaimer sul fatto che il documento è generato da AI.`;
+  `Sei un avvocato specializzato in diritto della privacy e protezione dei dati personali, con oltre 15 anni di esperienza nella redazione di documentazione legale GDPR per aziende italiane.
+
+STILE E FORMATO:
+- Usa linguaggio giuridico formale, preciso e autorevole — tono legalese professionale
+- Struttura il documento con ARTICOLI NUMERATI (Art. 1, Art. 2, ...) o sezioni titolate in maiuscolo
+- Inizia sempre con un'intestazione formale (nome documento, data, ragione sociale del titolare)
+- Cita sempre le norme di riferimento esatte (es. "ai sensi dell'art. 13 del Reg. UE 2016/679")
+- Usa periodi completi e sintatticamente corretti — niente frasi telegrafiche
+- Includi clausole di chiusura e spazio per data e firme quando appropriato
+- Il documento deve essere immediatamente utilizzabile, completo e firmabile
+
+QUALITÀ:
+- Ogni articolo/sezione deve essere esaustivo, non sintetico
+- Non omettere mai elementi obbligatori per legge
+- Adatta il contenuto specificamente al settore e ai dati del cliente forniti
+- Non aggiungere note, disclaimer o avvertenze sul fatto che il documento è generato da AI
+- Scrivi esclusivamente in italiano`;
 
 
-const DEFAULT_PARAMS = { temperature: 0.3, maxTokens: 4000 };
+const DEFAULT_PARAMS = { temperature: 0.2, maxTokens: 6000 };
 
 const TIPI_INFORMATIVA = ['Clienti','Fornitori','Candidati','Soci e Amministratori','Sito Internet','Dipendenti e Collaboratori'];
 
@@ -79,12 +95,134 @@ function buildPrompt(id, client, inp, settings, assets, suppliers) {
   const tmplStr = settings?.templateText ? `\n\nTEMPLATE DI RIFERIMENTO (segui questa struttura adattando il contenuto al cliente):\n${settings.templateText}` : '';
   const base = `DATI CLIENTE:\n${ci}${assetStr}${supplierStr}\n`;
   const map = {
-    informativa: base+`DOCUMENTO: Informativa Privacy (Art. 13-14 GDPR)\nTIPO DI INFORMATIVA: ${inp.tipoInformativa||'Clienti'}\nCategorie di interessati: ${inp.interessati||inp.tipoInformativa||'-'}\nCanali di raccolta: ${inp.canali||'-'}\nBase giuridica: ${inp.baseGiuridica||'-'}\nPaesi terzi: ${inp.paesiTerzi||'nessuno'}\nNote: ${inp.dettagli||'-'}${inp.trattamentiDaRegistro?`\n\nTRATTAMENTI GIÀ CENSITI NEL REGISTRO per questa categoria di interessati:\n${inp.trattamentiDaRegistro}\n`:''}\nCrea informativa privacy completa e specifica per la categoria "${inp.tipoInformativa||'Clienti'}", ai sensi dell'art. 13 (o 14) GDPR, con tutti gli elementi obbligatori: titolare e DPO, finalità e basi giuridiche per ciascuna (usando i trattamenti dal registro se forniti), categorie di dati, destinatari, eventuali trasferimenti extra-SEE, periodo di conservazione, tutti i diritti degli interessati con le modalità di esercizio, diritto di reclamo al Garante.`,
-    nomina29: base+`DOCUMENTO: Nomina Incaricato al Trattamento (Art. 29 GDPR, Art. 2-quaterdecies D.Lgs. 196/2003)${inp.funzioneAziendale?`\nFunzione aziendale: ${inp.funzioneAziendale}`:''}\nIncaricato: ${inp.incaricato||'-'}\nRuolo: ${inp.ruolo||'-'}\nTrattamenti assegnati: ${inp.trattamenti||'-'}\nIstruzioni operative: ${inp.istruzioni||'-'}\nCrea nomina formale con riferimenti normativi, designazione, elenco dettagliato dei trattamenti autorizzati con le relative istruzioni operative per ciascuno, obblighi dell'incaricato, divieti, spazio firme.`,
-    databreach: base+`DOCUMENTO: Data Breach Policy (Art. 33-34 GDPR)\nReferente: ${inp.referente||'-'}\nSistemi: ${inp.processi||'-'}\nNotifica: ${inp.tempiNotifica||'-'}\nContenimento: ${inp.contenimento||'-'}\nCrea policy completa: definizioni, procedura step-by-step, notifica Garante entro 72h, registro data breach.`,
-    diritti: base+`DOCUMENTO: Policy Gestione Diritti degli Interessati (Art. 15-22 GDPR)\nReferente: ${inp.referente||'-'}\nModalità: ${inp.modalita||'-'}\nTempi: ${inp.tempiRisposta||'-'}\nCrea policy con tutti i diritti, procedura ricezione richieste, tempi risposta e proroghe, registro richieste.`,
-    regolamento: base+`DOCUMENTO: Regolamento Utilizzo Strumenti Informatici (GDPR, D.Lgs.196/2003, Provv.Garante 2007, Art.4 L.300/70)\nStrumenti: ${inp.strumenti||'-'}\nPolitiche: ${inp.politiche||'-'}\nMonitoraggio: ${inp.monitoraggio||'-'}\nSanzioni: ${inp.sanzioni||'-'}\nCrea regolamento completo con disciplina per ogni strumento, informativa Art.4 L.300/70, sanzioni graduate, firma presa visione.`,
-    dpa: base+`DOCUMENTO: Data Processing Agreement — DPA (Art. 28 GDPR)\nTitolare: ${client.ragioneSociale} (${client.titolare})\nResponsabile del trattamento: ${inp.responsabile||'-'}\nServizio: ${inp.servizio||'-'}\nDati trattati: ${inp.datiTrattati||'-'}\nFinalità affidato: ${inp.finalitaDpa||'-'}\nMisure di sicurezza richieste: ${inp.misure||'-'}\nSub-responsabili: ${inp.subResponsabili||'nessuno'}\nPaese sede responsabile: ${inp.paeseSede||'-'}\nCrea DPA completo conforme Art.28 GDPR con: premesse, definizioni, oggetto e durata, istruzioni del titolare, obblighi del responsabile (riservatezza, sicurezza, sub-responsabili, assistenza, cancellazione/restituzione dati, audit), trasferimenti internazionali se applicabile, responsabilità, spazio firme entrambe le parti.`,
+    informativa: base+`DOCUMENTO DA REDIGERE: Informativa sul Trattamento dei Dati Personali ai sensi degli artt. 13-14 del Regolamento (UE) 2016/679 (GDPR)
+DESTINATARI: ${inp.tipoInformativa||'Clienti'}
+Categorie di interessati: ${inp.interessati||inp.tipoInformativa||'-'}
+Canali di raccolta dati: ${inp.canali||'-'}
+Base giuridica principale: ${inp.baseGiuridica||'-'}
+Trasferimenti verso paesi terzi: ${inp.paesiTerzi||'nessuno'}
+Note specifiche: ${inp.dettagli||'-'}${inp.trattamentiDaRegistro?`\nTRATTAMENTI DAL REGISTRO:\n${inp.trattamentiDaRegistro}`:''}
+
+Redigi un'informativa privacy completa, formale e immediatamente utilizzabile. Struttura il documento come segue:
+- Intestazione con nome documento, data e ragione sociale del Titolare
+- Art. 1 — Titolare del Trattamento (con dati completi e contatti)
+- Art. 2 — Responsabile della Protezione dei Dati / DPO (se presente)
+- Art. 3 — Tipologie di Dati Personali Trattati (elenca categorie specifiche)
+- Art. 4 — Finalità del Trattamento e Basi Giuridiche (una sottosezione per ciascuna finalità con la relativa base giuridica ex art. 6 GDPR)
+- Art. 5 — Modalità del Trattamento e Misure di Sicurezza
+- Art. 6 — Destinatari e Categorie di Destinatari dei Dati
+- Art. 7 — Trasferimento dei Dati verso Paesi Terzi (o assenza di trasferimenti)
+- Art. 8 — Periodo di Conservazione dei Dati (retention specifico per finalità)
+- Art. 9 — Diritti dell'Interessato (artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, portabilità, opposizione, revoca consenso)
+- Art. 10 — Modalità di Esercizio dei Diritti (come contattare il titolare, tempi di risposta)
+- Art. 11 — Diritto di Proporre Reclamo all'Autorità di Controllo (Garante Privacy)
+- Clausola di chiusura con data e spazio firma del Titolare`,
+
+    nomina29: base+`DOCUMENTO DA REDIGERE: Atto di Designazione e Nomina di Incaricato al Trattamento dei Dati Personali ai sensi dell'art. 29 del Reg. (UE) 2016/679 e dell'art. 2-quaterdecies del D.Lgs. 196/2003${inp.funzioneAziendale?` — Funzione: ${inp.funzioneAziendale}`:''}
+Incaricato: ${inp.incaricato||'-'}
+Ruolo/Mansione: ${inp.ruolo||'-'}
+Trattamenti assegnati: ${inp.trattamenti||'-'}
+Istruzioni operative specifiche: ${inp.istruzioni||'-'}
+
+Redigi un atto di nomina formale con linguaggio giuridico. Struttura:
+- Intestazione formale (ragione sociale, sede, P.IVA del Titolare)
+- Premesse ("Considerato che...", "Visto il Regolamento (UE) 2016/679...")
+- Art. 1 — Oggetto della Designazione
+- Art. 2 — Trattamenti Autorizzati (elenco dettagliato con finalità e tipologie di dati per ciascuno)
+- Art. 3 — Istruzioni Operative Vincolanti (modalità di trattamento, misure da adottare)
+- Art. 4 — Obblighi dell'Incaricato (riservatezza, sicurezza, limitazione di scopo, segnalazione violazioni)
+- Art. 5 — Divieti (accesso non autorizzato, comunicazione a terzi, conservazione oltre i termini)
+- Art. 6 — Durata e Revoca
+- Spazio per data, luogo, firma del Titolare/Rappresentante e firma per accettazione dell'Incaricato`,
+
+    databreach: base+`DOCUMENTO DA REDIGERE: Procedura di Gestione delle Violazioni dei Dati Personali (Data Breach) ai sensi degli artt. 33-34 del Reg. (UE) 2016/679
+Referente interno: ${inp.referente||'-'}
+Sistemi e processi coinvolti: ${inp.processi||'-'}
+Tempi di notifica definiti: ${inp.tempiNotifica||'-'}
+Misure di contenimento disponibili: ${inp.contenimento||'-'}
+
+Struttura il documento come policy interna formale:
+- Intestazione con versione, data, ambito di applicazione
+- Art. 1 — Definizioni (violazione dei dati, interessato, titolare, responsabile, ecc.)
+- Art. 2 — Ambito di Applicazione e Destinatari della Procedura
+- Art. 3 — Tipologie di Violazioni (riservatezza, integrità, disponibilità) e relativi esempi
+- Art. 4 — Procedura di Rilevazione e Segnalazione Interna (chi, come, entro quando)
+- Art. 5 — Valutazione del Rischio (criteri per determinare notifica al Garante e comunicazione agli interessati)
+- Art. 6 — Notifica al Garante Privacy entro 72 ore (art. 33 GDPR): contenuto obbligatorio, canali, modello
+- Art. 7 — Comunicazione agli Interessati (art. 34 GDPR): quando è obbligatoria, contenuto, modalità
+- Art. 8 — Registro delle Violazioni (art. 33.5 GDPR): struttura e obblighi di documentazione
+- Art. 9 — Misure di Contenimento e Ripristino
+- Art. 10 — Responsabilità e Sanzioni Interne
+- Allegato: Modello di registro data breach`,
+
+    diritti: base+`DOCUMENTO DA REDIGERE: Procedura per la Gestione delle Richieste di Esercizio dei Diritti degli Interessati ai sensi degli artt. 15-22 del Reg. (UE) 2016/679
+Referente/Ufficio responsabile: ${inp.referente||'-'}
+Modalità di ricezione richieste: ${inp.modalita||'-'}
+Tempi di risposta definiti: ${inp.tempiRisposta||'-'}
+
+Struttura il documento come procedura operativa formale:
+- Intestazione con versione, data, ambito
+- Art. 1 — Premesse e Riferimenti Normativi
+- Art. 2 — Definizioni (interessato, DSAR, ecc.)
+- Art. 3 — Diritti Riconosciuti (uno per uno: accesso art.15, rettifica art.16, cancellazione art.17, limitazione art.18, portabilità art.20, opposizione art.21, decisioni automatizzate art.22)
+- Art. 4 — Modalità di Presentazione delle Richieste (canali accettati, moduli, identificazione richiedente)
+- Art. 5 — Procedura Interna di Gestione (ricezione, registrazione, assegnazione, istruttoria)
+- Art. 6 — Termini di Risposta (1 mese + proroga 2 mesi, comunicazione proroga motivata)
+- Art. 7 — Casi di Rifiuto (art. 12.5: richieste manifestamente infondate o eccessive)
+- Art. 8 — Registro delle Richieste (struttura e obblighi di archiviazione)
+- Art. 9 — Gratuità e Tariffazione Eccezionale
+- Art. 10 — Responsabilità e Referenti Interni
+- Allegato: Modello di registro DSAR`,
+
+    regolamento: base+`DOCUMENTO DA REDIGERE: Regolamento per l'Utilizzo degli Strumenti Informatici e delle Risorse Tecnologiche Aziendali (GDPR, D.Lgs. 196/2003, Provvedimento Garante del 1° marzo 2007, art. 4 L. 300/1970)
+Strumenti aziendali forniti: ${inp.strumenti||'-'}
+Politiche di utilizzo: ${inp.politiche||'-'}
+Modalità di monitoraggio: ${inp.monitoraggio||'-'}
+Sistema sanzionatorio: ${inp.sanzioni||'-'}
+
+Struttura il documento come regolamento aziendale vincolante:
+- Intestazione formale con versione e data di adozione
+- Premesse (riferimenti normativi: GDPR, D.Lgs. 196/2003, Provv. Garante 2007, Statuto Lavoratori)
+- Art. 1 — Finalità e Ambito di Applicazione
+- Art. 2 — Definizioni (strumenti informatici, account aziendale, dati personali, ecc.)
+- Art. 3 — Utilizzo del Computer e dei Dispositivi Aziendali
+- Art. 4 — Utilizzo della Posta Elettronica Aziendale (usi consentiti, vietati, gestione assenze)
+- Art. 5 — Utilizzo di Internet e dei Social Media
+- Art. 6 — Utilizzo di Dispositivi Mobili e Lavoro da Remoto
+- Art. 7 — Gestione delle Password e Sicurezza degli Accessi
+- Art. 8 — Trattamento dei Dati Personali (obblighi GDPR per i dipendenti)
+- Art. 9 — Controlli e Monitoraggio (limiti ex art. 4 L. 300/1970, informativa preventiva)
+- Art. 10 — Violazioni e Sistema Disciplinare (sanzioni graduate)
+- Art. 11 — Entrata in Vigore e Aggiornamenti
+- Spazio per firma del dipendente per presa visione e accettazione`,
+
+    dpa: base+`DOCUMENTO DA REDIGERE: Accordo sul Trattamento dei Dati Personali (Data Processing Agreement — DPA) ai sensi dell'art. 28 del Reg. (UE) 2016/679
+TITOLARE DEL TRATTAMENTO: ${client.ragioneSociale}, ${client.sede} — Legale Rappresentante: ${client.titolare}
+RESPONSABILE DEL TRATTAMENTO: ${inp.responsabile||'[da inserire]'}
+Servizio/attività affidata: ${inp.servizio||'-'}
+Dati personali oggetto del trattamento: ${inp.datiTrattati||'-'}
+Finalità del trattamento affidato: ${inp.finalitaDpa||'-'}
+Misure di sicurezza richieste: ${inp.misure||'-'}
+Sub-responsabili autorizzati: ${inp.subResponsabili||'nessuno'}
+Paese di sede del Responsabile: ${inp.paeseSede||'Italia'}
+
+Redigi un DPA completo e vincolante. Struttura:
+- Intestazione formale con data, parti contraenti (denominazione, sede, P.IVA, legale rappresentante di ciascuna)
+- PREMESSE ("Considerato che il Titolare...", "Visto il Regolamento (UE) 2016/679...")
+- Art. 1 — Definizioni
+- Art. 2 — Oggetto, Durata e Natura del Trattamento
+- Art. 3 — Istruzioni Documentate del Titolare (obblighi di conformità alle istruzioni)
+- Art. 4 — Obblighi del Responsabile del Trattamento (riservatezza del personale, misure di sicurezza art. 32, designazione sub-responsabili, assistenza al titolare, cancellazione/restituzione dati a fine rapporto, messa a disposizione per audit)
+- Art. 5 — Autorizzazione ai Sub-Responsabili (elenco allegato, obbligo di clausole equivalenti, responsabilità solidale)
+- Art. 6 — Misure di Sicurezza Tecniche e Organizzative (dettaglio delle misure adottate)
+- Art. 7 — Notifica delle Violazioni dei Dati (tempi e modalità di comunicazione al Titolare)
+- Art. 8 — Assistenza nell'Esercizio dei Diritti degli Interessati
+- Art. 9 — Trasferimenti Internazionali (se applicabile, strumenti di garanzia adottati)
+- Art. 10 — Audit e Ispezioni
+- Art. 11 — Responsabilità e Indennizzo
+- Art. 12 — Durata, Recesso e Obblighi Post-Contratto
+- Art. 13 — Legge Applicabile e Foro Competente
+- Spazio firme entrambe le parti con data e luogo`,
   };
   return (map[id] || base) + tmplStr;
 }
