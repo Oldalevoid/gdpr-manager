@@ -3,6 +3,12 @@
   node_bundler = "esbuild"
 
 [[redirects]]
+  from = "/api/ollama/*"
+  to = "/.netlify/functions/ollama"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/groq/*"
   to = "/.netlify/functions/groq"
   status = 200

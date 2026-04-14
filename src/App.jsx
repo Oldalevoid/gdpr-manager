@@ -1441,8 +1441,9 @@ function AIProviderModal({provider, onSave, onClose}) {
   const [prov, setProv] = useState(provider || 'groq');
 
   const PROVIDERS = [
-    { id:'groq',   label:'Groq',             icon:'⚡', color:'#ff6b35', hint:'Veloce · llama-3.3-70b-versatile' },
-    { id:'claude', label:'Claude (Anthropic)', icon:'🟠', color:'#d97706', hint:'Alta qualità · claude-sonnet-4-6' },
+    { id:'groq',   label:'Groq',             icon:'⚡', color:'#ff6b35', hint:'Veloce · llama-3.3-70b' },
+    { id:'claude', label:'Claude (Anthropic)', icon:'🟠', color:'#d97706', hint:'Alta qualità · claude-sonnet' },
+    { id:'ollama', label:'Ollama (Locale)',   icon:'🖥️', color:'#0ea5e9', hint:'Privato · qwen2.5:72b' },
   ];
 
   return (
@@ -1717,6 +1718,18 @@ export default function App() {
       const text = data.content?.[0]?.text?.trim();
       if (!text) throw new Error('Risposta vuota. Riprova.');
       return text;
+    } else if (aiProvider === 'ollama') {
+      const ollamaMsgs = systemMsg ? [{ role: 'system', content: systemMsg }, ...chatMsgs] : chatMsgs;
+      const r = await fetch('/api/ollama/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'qwen2.5:72b', messages: ollamaMsgs, stream: false }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(`Errore Ollama (${r.status}): ${data.error || JSON.stringify(data)}`);
+      const text = data.message?.content?.trim();
+      if (!text) throw new Error('Risposta vuota. Riprova.');
+      return text;
     } else {
       const r = await fetch('/api/groq/openai/v1/chat/completions', {
         method: 'POST',
@@ -1856,7 +1869,7 @@ export default function App() {
         )}
         <div style={{flex:1}}/>
         <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0'}}>
-          <span style={{color:'rgba(255,255,255,.55)',fontSize:11,fontWeight:500}}>{aiProvider==='claude'?'🟠 Claude':'⚡ Groq'}</span>
+          <span style={{color:'rgba(255,255,255,.55)',fontSize:11,fontWeight:500}}>{aiProvider==='claude'?'🟠 Claude':aiProvider==='ollama'?'🖥️ Ollama':'⚡ Groq'}</span>
           <button
             style={{...C.btn('rgba(255,255,255,.15)','#fff',true),fontSize:12}}
             onClick={()=>setShowApiKey(true)}

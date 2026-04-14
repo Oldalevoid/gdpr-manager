@@ -7,7 +7,20 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/groq': {
+        '/api/ollama': {
+        target: 'https://proxy.integroup.eu',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/ollama/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('origin');
+            proxyReq.removeHeader('referer');
+            if (env.OLLAMA_CF_CLIENT_ID) proxyReq.setHeader('CF-Access-Client-Id', env.OLLAMA_CF_CLIENT_ID);
+            if (env.OLLAMA_CF_CLIENT_SECRET) proxyReq.setHeader('CF-Access-Client-Secret', env.OLLAMA_CF_CLIENT_SECRET);
+          });
+        },
+      },
+      '/api/groq': {
           target: 'https://api.groq.com',
           changeOrigin: true,
           rewrite: path => path.replace(/^\/api\/groq/, ''),
@@ -23,6 +36,8 @@ export default defineConfig(({ mode }) => {
           rewrite: path => path.replace(/^\/api\/claude/, ''),
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
               if (env.ANTHROPIC_API_KEY) {
                 proxyReq.setHeader('x-api-key', env.ANTHROPIC_API_KEY);
                 proxyReq.setHeader('anthropic-version', '2023-06-01');

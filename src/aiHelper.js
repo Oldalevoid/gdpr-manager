@@ -22,6 +22,8 @@ export async function generateFieldContent(fieldLabel, placeholder, context, onC
 
   if (provider === 'claude') {
     await generateFieldClaude(userContent, onChunk);
+  } else if (provider === 'ollama') {
+    await generateFieldOllama(userContent, onChunk);
   } else {
     await generateFieldGroq(userContent, onChunk);
   }
@@ -59,6 +61,41 @@ async function generateFieldClaude(userContent, onChunk) {
   });
   if (!res.ok) { const err = await res.text(); throw new Error(`Claude error ${res.status}: ${err}`); }
   await readSSEClaude(res.body, onChunk);
+}
+
+async function generateFieldOllama(userContent, onChunk) {
+  const res = await fetch('/api/ollama/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen2.5:72b',
+      stream: true,
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+  if (!res.ok) { const err = await res.text(); throw new Error(`Ollama error ${res.status}: ${err}`); }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) continue;
+      try {
+        const parsed = JSON.parse(t);
+        const text = parsed.message?.content || '';
+        if (text) onChunk(text);
+      } catch {}
+    }
+  }
 }
 
 async function readSSEGroq(body, onChunk) {

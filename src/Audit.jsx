@@ -156,26 +156,25 @@ export default function Audit({ client }) {
       const r = await fetch('/api/claude/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-opus-4-6',
-          max_tokens: 2000,
-          system: systemContent,
-          messages: msgs,
-        }),
+        body: JSON.stringify({ model: 'claude-opus-4-6', max_tokens: 2000, system: systemContent, messages: msgs }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore Claude API');
       return data.content?.[0]?.text?.trim() || '';
+    } else if (provider === 'ollama') {
+      const r = await fetch('/api/ollama/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'qwen2.5:72b', stream: false, messages: [{ role: 'system', content: systemContent }, ...msgs] }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error || 'Errore Ollama');
+      return data.message?.content?.trim() || '';
     } else {
       const r = await fetch('/api/groq/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          max_tokens: 2000,
-          temperature: 0.35,
-          messages: [{ role: 'system', content: systemContent }, ...msgs],
-        }),
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 2000, temperature: 0.35, messages: [{ role: 'system', content: systemContent }, ...msgs] }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore API');
