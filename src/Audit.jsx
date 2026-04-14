@@ -162,10 +162,11 @@ export default function Audit({ client }) {
       if (!r.ok || data.error) throw new Error(data.error?.message || 'Errore Claude API');
       return data.content?.[0]?.text?.trim() || '';
     } else if (provider === 'ollama') {
+      const model = localStorage.getItem('gdpr:ollamaModel') || 'qwen2.5:72b';
       const r = await fetch('/api/ollama/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'qwen2.5:72b', stream: false, messages: [{ role: 'system', content: systemContent }, ...msgs] }),
+        body: JSON.stringify({ model, stream: false, messages: [{ role: 'system', content: systemContent }, ...msgs] }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(data.error || 'Errore Ollama');

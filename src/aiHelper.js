@@ -64,11 +64,12 @@ async function generateFieldClaude(userContent, onChunk) {
 }
 
 async function generateFieldOllama(userContent, onChunk) {
+  const model = localStorage.getItem('gdpr:ollamaModel') || 'qwen2.5:72b';
   const res = await fetch('/api/ollama/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'qwen2.5:72b',
+      model,
       stream: true,
       messages: [
         { role: 'system', content: SYSTEM },

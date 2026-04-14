@@ -1437,14 +1437,28 @@ function ViewDoc({doc,onCopy,copied,onBack,onExport}) {
 }
 
 // ---- AI SETTINGS MODAL ----
-function AIProviderModal({provider, onSave, onClose}) {
+function AIProviderModal({provider, ollamaModel: initOllamaModel, onSave, onClose}) {
   const [prov, setProv] = useState(provider || 'groq');
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [ollamaModel, setOllamaModel] = useState(initOllamaModel || 'qwen2.5:72b');
+  const [loadingModels, setLoadingModels] = useState(false);
 
   const PROVIDERS = [
     { id:'groq',   label:'Groq',             icon:'⚡', color:'#ff6b35', hint:'Veloce · llama-3.3-70b' },
     { id:'claude', label:'Claude (Anthropic)', icon:'🟠', color:'#d97706', hint:'Alta qualità · claude-sonnet' },
-    { id:'ollama', label:'Ollama (Locale)',   icon:'🖥️', color:'#0ea5e9', hint:'Privato · qwen2.5:72b' },
+    { id:'ollama', label:'Ollama (Locale)',   icon:'🖥️', color:'#0ea5e9', hint:'Privato · server locale' },
   ];
+
+  useEffect(() => {
+    if (prov === 'ollama') {
+      setLoadingModels(true);
+      fetch('/api/ollama/api/tags')
+        .then(r => r.json())
+        .then(data => { setOllamaModels(data.models?.map(m => m.name) || []); })
+        .catch(() => setOllamaModels([]))
+        .finally(() => setLoadingModels(false));
+    }
+  }, [prov]);
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
@@ -1469,8 +1483,27 @@ function AIProviderModal({provider, onSave, onClose}) {
           ))}
         </div>
 
+        {prov === 'ollama' && (
+          <div style={{marginBottom:20}}>
+            <label style={{...C.lbl}}>🖥️ Modello Ollama</label>
+            {loadingModels
+              ? <div style={{fontSize:12,color:'#94a3b8',padding:'8px 0'}}>⏳ Caricamento modelli...</div>
+              : ollamaModels.length > 0
+                ? <select value={ollamaModel} onChange={e=>setOllamaModel(e.target.value)} style={{...C.inp}}>
+                    {ollamaModels.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                : <input value={ollamaModel} onChange={e=>setOllamaModel(e.target.value)}
+                    placeholder='qwen2.5:72b'
+                    style={{...C.inp}}/>
+            }
+            <div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>
+              {ollamaModels.length > 0 ? `${ollamaModels.length} modelli disponibili` : 'Server non raggiungibile — inserisci il nome manualmente'}
+            </div>
+          </div>
+        )}
+
         <div style={C.row}>
-          <button style={C.btn(ACCENT,'#fff')} onClick={()=>onSave(prov)}>💾 Salva</button>
+          <button style={C.btn(ACCENT,'#fff')} onClick={()=>onSave(prov, ollamaModel)}>💾 Salva</button>
           <button style={C.btn('#f1f5f9','#374151')} onClick={onClose}>Annulla</button>
         </div>
       </div>
@@ -1518,6 +1551,7 @@ export default function App() {
   const [copied,setCopied]=useState(false);
   const [error,setError]=useState(null);
   const [aiProvider,setAiProvider]=useState(()=>localStorage.getItem('gdpr:aiProvider')||'groq');
+  const [ollamaModel,setOllamaModel]=useState(()=>localStorage.getItem('gdpr:ollamaModel')||'qwen2.5:72b');
   const [showApiKey,setShowApiKey]=useState(false);
 
   useEffect(()=>{
@@ -1694,9 +1728,10 @@ export default function App() {
     setSettingsDt(null);
   }
 
-  function handleSaveProvider(provider) {
+  function handleSaveProvider(provider, model) {
     setAiProvider(provider);
     localStorage.setItem('gdpr:aiProvider', provider);
+    if (model) { setOllamaModel(model); localStorage.setItem('gdpr:ollamaModel', model); }
     setShowApiKey(false);
   }
 
@@ -1723,7 +1758,7 @@ export default function App() {
       const r = await fetch('/api/ollama/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'qwen2.5:72b', messages: ollamaMsgs, stream: false }),
+        body: JSON.stringify({ model: ollamaModel, messages: ollamaMsgs, stream: false }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(`Errore Ollama (${r.status}): ${data.error || JSON.stringify(data)}`);
@@ -2018,6 +2053,7 @@ export default function App() {
       {showApiKey&&(
         <AIProviderModal
           provider={aiProvider}
+          ollamaModel={ollamaModel}
           onSave={handleSaveProvider}
           onClose={()=>setShowApiKey(false)}
         />
