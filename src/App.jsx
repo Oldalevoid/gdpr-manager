@@ -5,6 +5,7 @@ import RegistroTrattamenti from './RegistroTrattamenti';
 import AnalisiRischi from './AnalisiRischi';
 import DPIA from './DPIA';
 import Audit from './Audit';
+import AIAgent from './AIAgent';
 import LIA from './LIA';
 import DataBreaches from './DataBreaches';
 import NIS2GapAnalysis from './NIS2GapAnalysis';
@@ -753,6 +754,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
         <TB id='dpia' label='🔍 DPIA' badge={dpia.length}/>
         <TB id='lia' label='⚖️ LIA' badge={lia.length}/>
         <TB id='audit' label='🔍 Audit'/>
+        <TB id='agent' label='🤖 AI Agent'/>
         <TB id='breach' label='🚨 Breach' badge={breaches.length}/>
         <TB id='assets' label='🖥️ Asset' badge={assets.length}/>
         <TB id='suppliers' label='🏭 Fornitori' badge={suppliers.length}/>
@@ -793,6 +795,7 @@ function ClientDetail({client, docs, assets, suppliers, docSettings, onGenerate,
       {tab==='dpia'&&<DPIA trattamenti={trattamenti} dpia={dpia} misure={misure} onSave={onSaveDPIA}/>}
       {tab==='lia'&&<LIA trattamenti={trattamenti} lia={lia} onSave={onSaveLIA}/>}
       {tab==='audit'&&<Audit client={client}/>}
+      {tab==='agent'&&<AIAgent client={client}/>}
       {tab==='breach'&&<DataBreaches breaches={breaches} onSave={onSaveBreach} onDelete={onDeleteBreach}/>}
       {tab==='assets'&&<AssetManager assets={assets} onChange={onChangeAssets}/>}
       {tab==='suppliers'&&<SupplierManager suppliers={suppliers} onChange={onChangeSuppliers}/>}
