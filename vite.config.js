@@ -7,11 +7,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/agent': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-      },
-      '/api/ollama': {
+        '/api/ollama': {
         target: 'https://proxy.integroup.eu',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api\/ollama/, ''),

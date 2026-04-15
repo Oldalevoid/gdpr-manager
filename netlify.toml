@@ -3,12 +3,6 @@
   node_bundler = "esbuild"
 
 [[redirects]]
-  from = "/api/agent"
-  to = "/.netlify/functions/ai-agent"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/api/ollama/*"
   to = "/.netlify/functions/ollama"
   status = 200
